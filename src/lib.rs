@@ -1,3 +1,64 @@
+//! # OpenID Connect Client
+//!
+//! There are two ways to interact with this library - the batteries included magic methods, and
+//! the slightly more boilerplate but more fine grained ones. For most users the following is what
+//! you want.
+//! ```
+//! use oidc;
+//! use url;
+//! use std::default::Default;
+//! 
+//! let id = "my client".to_string();
+//! let secret = "a secret to everybody".to_string();
+//! let redirect = url::Url::parse("https://my-redirect.foo")?;
+//! let issuer = oidc::issuer::google();
+//! let client = oidc::discover(id, secret, redirect, issuer)?;
+//! let scope = "openid";
+//! let state = "randomstring";
+//! let auth_url = client.auth_url(Default::default())?;
+//! 
+//! // ... send your user to auth_url, get an auth_code back at your redirect_url handler
+//! 
+//! let token = client.authenticate(auth_code, Options::default())?;
+//! ```
+//! That example leaves you with a decoded `Token` that has been validated. Your user is 
+//! authenticated!
+//!
+//! You can also take a more nuanced approach that gives you more fine grained control:
+//! ```
+//! use oidc;
+//! use reqwest;
+//! use url;
+//! use std::default::Default;
+//! 
+//! let id = "my client".to_string();
+//! let secret = "a secret to everybody".to_string();
+//! let redirect = url::Url::parse("https://my-redirect.foo")?;
+//! let issuer = oidc::issuer::google();
+//! let http = reqwest::Client::new()?;
+//! 
+//! let config = oidc::discovery::discover(&http, issuer)?;
+//! let jwks = oidc::discovery::jwks(&http, config.jwks_uri.clone())?;
+//! let provider = oidc::discovery::Discovered { config };
+//! 
+//! let client = oidc::new(id, secret, redirect, provider, jwks);
+//! let auth_url = client.auth_url(Default::default())?;
+//!
+//! // ... send your user to auth_url, get an auth_code back at your redirect_url handler
+//! 
+//! let mut token = client.request_token(&http, auth_code)?;
+//! client.decode_token(&mut token)?;
+//! client.validate_token(&token, None, None)?;
+//! 
+//! let userinfo = client.request_userinfo(&http, &token)?;
+//! ```
+//! This more complicated version uses the discovery module directly. Important distinctions to make
+//! between the two:
+//! - The complex pattern avoids constructing a new reqwest client every time an outbound method is
+//!   called. Especially for token decoding having to rebuild reqwest every time can be a large
+//!   performance penalty.
+//! - Tokens don't come decoded or validated. You need to do both manually.
+//! - This version demonstrates userinfo. It is not required by spec, so make sure its available!
 extern crate base64;
 extern crate biscuit;
 extern crate chrono;
@@ -14,9 +75,381 @@ extern crate validator;
 #[macro_use]
 extern crate validator_derive;
 
-pub mod client;
 pub mod discovery;
 pub mod error;
+pub mod issuer;
 pub mod token;
 
 pub use error::Error;
+
+use biscuit::{Empty, SingleOrMultiple};
+use biscuit::jwa::{self, SignatureAlgorithm};
+use biscuit::jwk::{AlgorithmParameters, JWKSet};
+use biscuit::jws::{Compact, Secret};
+use chrono::{Duration, Utc};
+use inth_oauth2::token::Token as _t;
+use reqwest::{header, Url};
+use validator::Validate;
+
+use discovery::{Config, Discovered};
+use error::{Decode, Expiry, Mismatch, Missing, Validation};
+use token::{Claims, Token};
+
+type IdToken = Compact<Claims, Empty>;
+
+
+pub struct Client {
+    oauth: inth_oauth2::Client<Discovered>,
+    jwks: JWKSet<Empty>,
+}
+
+// Common pattern in the Client::decode function when dealing with mismatched keys
+macro_rules! wrong_key {
+    ($expected:expr, $actual:expr) => (
+        Err(error::Jose::WrongKeyType {
+                expected: format!("{:?}", $expected),
+                actual: format!("{:?}", $actual)
+            }.into()
+        )
+    )
+}
+
+impl Client {
+    /// Constructs a client from an issuer url and client parameters via discovery
+    pub fn discover(id: String, secret: String, redirect: Url, issuer: Url) -> Result<Self, Error> {
+        discovery::secure(&redirect)?;
+        let client = reqwest::Client::new()?;
+        let config = discovery::discover(&client, issuer)?;
+        let jwks = discovery::jwks(&client, config.jwks_uri.clone())?;
+        let provider = Discovered { config };
+        Ok(Self::new(id, secret, redirect, provider, jwks))
+    }
+
+    /// Constructs a client from a given provider, key set, and parameters. Unlike ::discover(..) 
+    /// this function does not perform any network operations.
+    pub fn new(id: String, secret: String, redirect: Url, provider: Discovered, jwks: JWKSet<Empty>) -> Self {
+        Client {
+            oauth: inth_oauth2::Client::new(
+                provider, 
+                id, 
+                secret,
+                Some(redirect.into_string())),
+            jwks
+        }
+    }
+
+    pub fn request_token(&self,
+                         client: &reqwest::Client,
+                         auth_code: &str,
+    ) -> Result<Token, Error> {
+        self.oauth.request_token(client, auth_code).map_err(Error::from)
+    }
+
+    /// A reference to the config document of the provider obtained via discovery
+    pub fn config(&self) -> &Config {
+        &self.oauth.provider.config
+    }
+
+    /// Constructs the auth_url to redirect a client to the provider. Options are... optional. Use 
+    /// them as needed. Keep the Options struct around for authentication, or at least the nonce 
+    /// and max_age parameter - we need to verify they stay the same and validate if you used them.
+    pub fn auth_url(&self, options: &Options) -> Result<Url, Error>{
+        let scope = match options.scope {
+            Some(ref scope) => {
+                if !scope.contains("openid") {
+                    return Err(Error::MissingOpenidScope)
+                }
+                scope
+            }
+            // Default scope value
+            None => "openid"
+        };
+
+        let mut url = self.oauth.auth_uri(Some(scope), options.state.as_ref().map(String::as_str))?;
+        {
+            let mut query = url.query_pairs_mut();
+            if let Some(ref nonce) = options.nonce {
+                query.append_pair("nonce", nonce.as_str());
+            }
+            if let Some(ref display) = options.display {
+                query.append_pair("display", display.as_str());
+            }
+            if let Some(ref prompt) = options.prompt {
+                let s = prompt.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(" ");
+                query.append_pair("prompt", s.as_str());
+            }
+            if let Some(max_age) = options.max_age {
+                query.append_pair("max_age", max_age.num_seconds().to_string().as_str());
+            }
+            if let Some(ref ui_locales) = options.ui_locales {
+                query.append_pair("ui_locales", ui_locales.as_str());
+            }
+            if let Some(ref claims_locales) = options.claims_locales {
+                query.append_pair("claims_locales", claims_locales.as_str());
+            }
+            if let Some(ref id_token_hint) = options.id_token_hint {
+                query.append_pair("id_token_hint", id_token_hint.as_str());
+            }
+            if let Some(ref login_hint) = options.login_hint {
+                query.append_pair("login_hint", login_hint.as_str());
+            }
+            if let Some(ref acr_values) = options.acr_values {
+                query.append_pair("acr_values", acr_values.as_str());
+            }
+        }
+        Ok(url)
+    }
+
+    /// Given an auth_code and auth options, request the token, decode, and validate it.
+    pub fn authenticate(&self, auth_code: &str, options: &Options
+    ) -> Result<Token, Error> {
+        let client = reqwest::Client::new()?;
+        let mut token = self.request_token(&client, auth_code)?;
+        self.decode_token(&mut token.id_token)?;
+        self.validate_token(&token.id_token, 
+            options.nonce.as_ref().map(String::as_ref), 
+            options.max_age.as_ref())?;
+        Ok(token)
+    }
+
+    pub fn decode_token(&self, token: &mut IdToken) -> Result<(), Error> {
+        // This is an early escape if the token is already decoded
+        token.encoded()?;
+
+        let header = token.unverified_header()?;
+        // If there is more than one key, the token MUST have a key id
+        let key = if self.jwks.keys.len() > 1 {
+            let token_kid = header.registered.key_id.ok_or(Decode::MissingKid)?;
+            self.jwks.find(&token_kid).ok_or(Decode::MissingKey)?
+        } else {
+            self.jwks.keys.first().as_ref().ok_or(Decode::EmptySet)?
+        };
+
+        if let Some(alg) = key.common.algorithm.as_ref() {
+            if let &jwa::Algorithm::Signature(alg) = alg {
+                if header.registered.algorithm != alg {
+                    return wrong_key!(alg, header.registered.algorithm);
+                }
+            } else {
+                return  wrong_key!(SignatureAlgorithm::default(), alg);
+            }
+        }
+
+        let alg = header.registered.algorithm;
+        match key.algorithm {
+            // HMAC
+            AlgorithmParameters::OctectKey { ref value, .. } => {
+                match alg {
+                    SignatureAlgorithm::HS256 |
+                    SignatureAlgorithm::HS384 |
+                    SignatureAlgorithm::HS512 => {
+                        *token = token.decode(&Secret::Bytes(value.clone()), alg)?;
+                        Ok(())
+                    }
+                    _ =>  wrong_key!("HS256 | HS384 | HS512", alg)
+                }
+            }
+            AlgorithmParameters::RSA(ref params) => {
+                match alg {
+                    SignatureAlgorithm::RS256 |
+                    SignatureAlgorithm::RS384 |
+                    SignatureAlgorithm::RS512 => {
+                        let pkcs = Secret::Pkcs {
+                            n: params.n.clone(),
+                            e: params.e.clone(),
+                        };
+                        *token = token.decode(&pkcs, alg)?;
+                        Ok(())
+                    }
+                    _ =>  wrong_key!("RS256 | RS384 | RS512", alg)
+                }
+            }
+            AlgorithmParameters::EllipticCurve(_) => unimplemented!("No support for EC keys yet"),
+        }
+    }
+
+    pub fn validate_token(
+        &self, 
+        token: &IdToken, 
+        nonce: Option<&str>, 
+        max_age: Option<&Duration>
+    ) -> Result<(), Error> {
+        let claims = token.payload()?;
+
+        if claims.iss != self.config().issuer {
+            return Err(Validation::Mismatch(Mismatch::Issuer).into());
+        }
+
+        if let Some(ref nonce) = nonce {
+            match claims.nonce {
+                Some(ref test) => {
+                    if test != nonce {
+                        return Err(Validation::Mismatch(Mismatch::Nonce).into());
+                    }
+                }
+                None => return Err(Validation::Missing(Missing::Nonce).into()),
+            }
+        }
+
+        if !claims.aud.contains(&self.oauth.client_id) {
+            return Err(Validation::Mismatch(Mismatch::Audience).into());
+        }
+        // By spec, if there are multiple auds, we must have an azp
+        if let SingleOrMultiple::Multiple(_) = claims.aud {
+            if let None = claims.azp {
+                return Err(Validation::Missing(Missing::AuthorizedParty).into());
+            }
+        }
+        // If there is an authorized party, it must be our client_id
+        if let Some(ref azp) = claims.azp {
+            if azp != &self.oauth.client_id {
+                return Err(Validation::Mismatch(Mismatch::Authorized).into());
+            }
+        }
+
+        let now = Utc::now();
+        // Now should never be less than the time this code was written!
+        if now.timestamp() < 1504758600 {
+            panic!("chrono::Utc::now() can never be before this was written!")
+        }
+        if claims.exp <= now.timestamp() {
+            return Err(Validation::Expired(Expiry::Expires).into());
+        }
+
+        if let Some(age) = max_age {
+            match claims.auth_time {
+                Some(time) => {
+                    // This is not currently risky business. That could change.
+                    if time >= (now - *age).timestamp() {
+                        return Err(error::Validation::Expired(Expiry::MaxAge).into());
+                    }
+                }
+                None => return Err(Validation::Missing(Missing::AuthTime).into()),
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn request_userinfo(&self, client: &reqwest::Client, token: &Token) -> Result<Userinfo, Error> {
+        match self.config().userinfo_endpoint {
+            Some(ref url) => {
+                discovery::secure(&url)?;
+                if url.origin() != self.config().issuer.origin() {
+                    return Err(error::Userinfo::MismatchIssuer.into());
+                }
+                let claims = token.id_token.payload()?;
+                let auth_code = token.access_token().to_string();
+                let mut resp = client.get(url.clone())?
+                    .header(header::Authorization(header::Bearer { token: auth_code })).send()?;
+                let info: Userinfo = resp.json()?;
+                if claims.sub != info.sub {
+                    return Err(error::Userinfo::MismatchSubject.into())
+                }
+                Ok(info)
+            }
+            None => Err(error::Userinfo::NoUrl.into())
+        }
+    }
+}
+
+/// Optional parameters that [OpenID specifies](https://openid.net/specs/openid-connect-basic-1_0.html#RequestParameters) for the auth URI.
+/// Derives Default, so remember to ..Default::default() after you specify what you want.
+#[derive(Default)]
+pub struct Options {
+    pub scope: Option<String>,
+    pub state: Option<String>,
+    pub nonce: Option<String>,
+    pub display: Option<Display>,
+    pub prompt: Option<std::collections::HashSet<Prompt>>,
+    pub max_age: Option<Duration>,
+    pub ui_locales: Option<String>,
+    pub claims_locales: Option<String>,
+    pub id_token_hint: Option<String>,
+    pub login_hint: Option<String>,
+    pub acr_values: Option<String>,
+}
+
+/// The userinfo struct contains all possible userinfo fields regardless of scope. [See spec.](https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims)
+// TODO is there a way to use claims_supported in config to simplify this struct?
+#[derive(Deserialize, Validate)]
+pub struct Userinfo {
+    pub sub: String,
+    pub name: Option<String>,
+    pub given_name: Option<String>,
+    pub family_name: Option<String>,
+    pub middle_name: Option<String>,
+    pub nickname: Option<String>,
+    pub preferred_username: Option<String>,
+    #[serde(with = "url_serde")]
+    pub profile: Option<Url>,
+    #[serde(with = "url_serde")]
+    pub picture: Option<Url>,
+    #[serde(with = "url_serde")]
+    pub website: Option<Url>,
+    #[validate(email)]
+    pub email: Option<String>,
+    pub email_verified: Option<bool>,
+    // Isn't required to be just male or female
+    pub gender: Option<String>,
+    // ISO 9601:2004 YYYY-MM-DD or YYYY. Would be nice to serialize to chrono::Date.
+    pub birthdate: Option<String>,
+    // Region/City codes. Should also have a more concrete serializer form.
+    pub zoneinfo: Option<String>,
+    // Usually RFC5646 langcode-countrycode, maybe with a _ sep, could be arbitrary
+    pub locale: Option<String>,
+    // Usually E.164 format number
+    pub phone_number: Option<String>,
+    pub phone_number_verified: Option<bool>,
+    pub address: Option<Address>,
+    pub updated_at: Option<i64>,
+}
+
+pub enum Display {
+    Page,
+    Popup,
+    Touch,
+    Wap,
+}
+
+impl Display {
+    fn as_str(&self) -> &'static str {
+        match *self {
+            Display::Page => "page",
+            Display::Popup => "popup",
+            Display::Touch => "touch",
+            Display::Wap => "wap",
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Hash)]
+pub enum Prompt {
+    None,
+    Login,
+    Consent,
+    SelectAccount,
+}
+
+impl Prompt {
+    fn as_str(&self) -> &'static str {
+        match self {
+            &Prompt::None => "none",
+            &Prompt::Login => "login",
+            &Prompt::Consent => "consent",
+            &Prompt::SelectAccount => "select_account",
+        }
+    }
+}
+
+/// Address Claim struct. Can be only formatted, only the rest, or both.
+#[derive(Deserialize)]
+pub struct Address {
+    pub formatted: Option<String>,
+    pub street_address: Option<String>,
+    pub locality: Option<String>,
+    pub region: Option<String>,
+    // Countries like the UK use alphanumeric postal codes, so you can't just use a number here
+    pub postal_code: Option<String>,
+    pub country: Option<String>,
+}

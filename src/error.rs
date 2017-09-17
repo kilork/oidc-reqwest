@@ -23,6 +23,7 @@ pub enum Error {
     Validation(Validation),
     Userinfo(Userinfo),
     Insecure,
+    MissingOpenidScope,
 }
 
 from!(Error, Jose);

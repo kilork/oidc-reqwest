@@ -57,6 +57,7 @@ impl CompactJson for Claims {}
 /// An OpenID Connect token. This is the only token allowed by spec.
 /// Has an access_token for bearer, and the id_token for authentication.
 /// Wraps an oauth bearer token.
+#[derive(Serialize, Deserialize)]
 pub struct Token {
     bearer: Bearer<Expiring>,
     pub id_token: IdToken,
