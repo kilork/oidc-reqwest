@@ -5,12 +5,12 @@
 //! you want.
 //! ```
 //! use oidc;
-//! use url;
+//! use reqwest;
 //! use std::default::Default;
 //! 
 //! let id = "my client".to_string();
 //! let secret = "a secret to everybody".to_string();
-//! let redirect = url::Url::parse("https://my-redirect.foo")?;
+//! let redirect = reqwest::Url::parse("https://my-redirect.foo")?;
 //! let issuer = oidc::issuer::google();
 //! let client = oidc::discover(id, secret, redirect, issuer)?;
 //! let scope = "openid";
@@ -28,12 +28,11 @@
 //! ```
 //! use oidc;
 //! use reqwest;
-//! use url;
 //! use std::default::Default;
 //! 
 //! let id = "my client".to_string();
 //! let secret = "a secret to everybody".to_string();
-//! let redirect = url::Url::parse("https://my-redirect.foo")?;
+//! let redirect = reqwest::Url::parse("https://my-redirect.foo")?;
 //! let issuer = oidc::issuer::google();
 //! let http = reqwest::Client::new()?;
 //! 
@@ -220,7 +219,7 @@ impl Client {
         // If there is more than one key, the token MUST have a key id
         let key = if self.jwks.keys.len() > 1 {
             let token_kid = header.registered.key_id.ok_or(Decode::MissingKid)?;
-            self.jwks.find(&token_kid).ok_or(Decode::MissingKey)?
+            self.jwks.find(&token_kid).ok_or(Decode::MissingKey(token_kid))?
         } else {
             self.jwks.keys.first().as_ref().ok_or(Decode::EmptySet)?
         };
@@ -276,15 +275,21 @@ impl Client {
     ) -> Result<(), Error> {
         let claims = token.payload()?;
 
-        if claims.iss != self.config().issuer {
-            return Err(Validation::Mismatch(Mismatch::Issuer).into());
+
+        if claims.iss != self.config().issuer  {
+            let expected = self.config().issuer.as_str().to_string();
+            let actual = claims.iss.as_str().to_string();
+            return Err(Validation::Mismatch(Mismatch::Issuer { expected, actual }).into());
         }
 
-        if let Some(ref nonce) = nonce {
+        if let Some(expected) = nonce {
             match claims.nonce {
-                Some(ref test) => {
-                    if test != nonce {
-                        return Err(Validation::Mismatch(Mismatch::Nonce).into());
+                Some(ref actual) => {
+                    if expected != actual {
+                        let expected = expected.to_string();
+                        let actual = actual.to_string();
+                        return Err(Validation::Mismatch(
+                            Mismatch::Nonce { expected, actual }).into());
                     }
                 }
                 None => return Err(Validation::Missing(Missing::Nonce).into()),
@@ -292,7 +297,7 @@ impl Client {
         }
 
         if !claims.aud.contains(&self.oauth.client_id) {
-            return Err(Validation::Mismatch(Mismatch::Audience).into());
+            return Err(Validation::Missing(Missing::Audience).into());
         }
         // By spec, if there are multiple auds, we must have an azp
         if let SingleOrMultiple::Multiple(_) = claims.aud {
@@ -301,9 +306,11 @@ impl Client {
             }
         }
         // If there is an authorized party, it must be our client_id
-        if let Some(ref azp) = claims.azp {
-            if azp != &self.oauth.client_id {
-                return Err(Validation::Mismatch(Mismatch::Authorized).into());
+        if let Some(ref actual) = claims.azp {
+            if actual != &self.oauth.client_id {
+                let expected = self.oauth.client_id.to_string();
+                let actual = actual.to_string();
+                return Err(Validation::Mismatch(Mismatch::Authorized { expected, actual }).into());
             }
         }
 
@@ -313,15 +320,15 @@ impl Client {
             panic!("chrono::Utc::now() can never be before this was written!")
         }
         if claims.exp <= now.timestamp() {
-            return Err(Validation::Expired(Expiry::Expires).into());
+            return Err(Validation::Expired(Expiry::Expires(chrono::naive::NaiveDateTime::from_timestamp(claims.exp, 0))).into());
         }
 
-        if let Some(age) = max_age {
+        if let Some(max) = max_age {
             match claims.auth_time {
                 Some(time) => {
-                    // This is not currently risky business. That could change.
-                    if time >= (now - *age).timestamp() {
-                        return Err(error::Validation::Expired(Expiry::MaxAge).into());
+                    let age = chrono::Duration::seconds(now.timestamp() - time);
+                    if age >= *max {
+                        return Err(error::Validation::Expired(Expiry::MaxAge(age)).into());
                     }
                 }
                 None => return Err(Validation::Missing(Missing::AuthTime).into()),
@@ -336,7 +343,9 @@ impl Client {
             Some(ref url) => {
                 discovery::secure(&url)?;
                 if url.origin() != self.config().issuer.origin() {
-                    return Err(error::Userinfo::MismatchIssuer.into());
+                    let expected = self.config().issuer.as_str().to_string();
+                    let actual = url.as_str().to_string();
+                    return Err(error::Userinfo::MismatchIssuer { expected, actual }.into());
                 }
                 let claims = token.id_token.payload()?;
                 let auth_code = token.access_token().to_string();
@@ -344,7 +353,9 @@ impl Client {
                     .header(header::Authorization(header::Bearer { token: auth_code })).send()?;
                 let info: Userinfo = resp.json()?;
                 if claims.sub != info.sub {
-                    return Err(error::Userinfo::MismatchSubject.into())
+                    let expected = info.sub.clone();
+                    let actual = claims.sub.clone();
+                    return Err(error::Userinfo::MismatchSubject { expected, actual }.into())
                 }
                 Ok(info)
             }
@@ -414,11 +425,11 @@ pub enum Display {
 
 impl Display {
     fn as_str(&self) -> &'static str {
-        match *self {
-            Display::Page => "page",
-            Display::Popup => "popup",
-            Display::Touch => "touch",
-            Display::Wap => "wap",
+        match self {
+            Page => "page",
+            Popup => "popup",
+            Touch => "touch",
+            Wap => "wap",
         }
     }
 }
@@ -435,9 +446,9 @@ impl Prompt {
     fn as_str(&self) -> &'static str {
         match self {
             &Prompt::None => "none",
-            &Prompt::Login => "login",
-            &Prompt::Consent => "consent",
-            &Prompt::SelectAccount => "select_account",
+            Login => "login",
+            Consent => "consent",
+            SelectAccount => "select_account",
         }
     }
 }

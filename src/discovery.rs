@@ -11,7 +11,7 @@ use token::Token;
 
 pub(crate) fn secure(url: &Url) -> Result<(), Error> {
     if url.scheme() != "https" {
-        Err(Error::Insecure)
+        Err(Error::Insecure(url.clone()))
     } else {
         Ok(())
     }
