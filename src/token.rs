@@ -2,13 +2,10 @@ use base64;
 use biscuit::{CompactJson, Empty, SingleOrMultiple};
 use biscuit::jws::Compact;
 use inth_oauth2::client::response::{FromResponse, ParseError};
-use inth_oauth2::token::{self, Bearer, Lifetime};
+use inth_oauth2::token::{self, Bearer, Expiring};
 use reqwest::Url;
 use serde_json::Value;
 use url_serde;
-
-/// Rexported lifetime token types from oauth
-pub use inth_oauth2::token::{Expiring, Refresh, Static};
 
 type IdToken = Compact<Claims, Empty>;
 
@@ -60,12 +57,12 @@ impl CompactJson for Claims {}
 /// An OpenID Connect token. This is the only token allowed by spec.
 /// Has an access_token for bearer, and the id_token for authentication.
 /// Wraps an oauth bearer token.
-pub struct Token<L: Lifetime> {
-    bearer: Bearer<L>,
+pub struct Token {
+    bearer: Bearer<Expiring>,
     pub id_token: IdToken,
 }
 
-impl<L: Lifetime> Token<L> {
+impl Token {
     // Takes a json response object and parses out the id token
     // TODO Support extracting a jwe token according to spec. Right now we only support jws tokens.
     fn id_token(json: &Value) -> Result<IdToken, ParseError> {
@@ -77,19 +74,19 @@ impl<L: Lifetime> Token<L> {
     }
 }
 
-impl<L: Lifetime> token::Token<L> for Token<L> {
+impl token::Token<Expiring> for Token {
     fn access_token(&self) -> &str {
         self.bearer.access_token()
     }
     fn scope(&self) -> Option<&str> {
         self.bearer.scope()
     }
-    fn lifetime(&self) -> &L {
+    fn lifetime(&self) -> &Expiring {
         self.bearer.lifetime()
     }
 }
 
-impl<L: Lifetime> FromResponse for Token<L> {
+impl FromResponse for Token {
     fn from_response(json: &Value) -> Result<Self, ParseError> {
         let bearer = Bearer::from_response(json)?;
         let id_token = Self::id_token(json)?;

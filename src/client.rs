@@ -4,7 +4,8 @@ use biscuit::jwk::{AlgorithmParameters, JWKSet};
 use biscuit::jws::{Compact, Secret};
 use chrono::{Duration, Utc};
 use inth_oauth2;
-use reqwest::{self, Url};
+use inth_oauth2::token::Token as _t;
+use reqwest::{self, header, Url};
 use url_serde;
 use validator::Validate;
 
@@ -12,7 +13,7 @@ use std::collections::HashSet;
 
 use discovery::{self, Config, Discovered};
 use error::{self, Decode, Error, Expiry, Mismatch, Missing, Validation};
-use token::{Claims, Expiring, Token};
+use token::{Claims, Token};
 
 type IdToken = Compact<Claims, Empty>;
 
@@ -165,7 +166,7 @@ impl Client {
     pub fn request_token(&self,
                          client: &reqwest::Client,
                          auth_code: &str,
-    ) -> Result<Token<Expiring>, error::Oauth> {
+    ) -> Result<Token, error::Oauth> {
         self.oauth.request_token(client, auth_code)
     }
 
@@ -218,7 +219,7 @@ impl Client {
 
     /// Given an auth_code and auth options, request the token, decode, and validate it.
     pub fn authenticate(&self, auth_code: &str, options: &Options
-    ) -> Result<Token<Expiring>, Error> {
+    ) -> Result<Token, Error> {
         let client = reqwest::Client::new()?;
         let mut token = self.request_token(&client, auth_code)?;
         self.decode_token(&mut token.id_token)?;
@@ -347,13 +348,22 @@ impl Client {
         Ok(())
     }
 
-    pub fn request_userinfo(&self, client: &reqwest::Client, token: &Token<Expiring>) -> Result<Userinfo, Error> {
+    pub fn request_userinfo(&self, client: &reqwest::Client, token: &Token) -> Result<Userinfo, Error> {
         match self.config().userinfo_endpoint {
             Some(ref url) => {
+                discovery::secure(&url)?;
                 if url.origin() != self.config().issuer.origin() {
                     return Err(error::Userinfo::MismatchIssuer.into());
                 }
-                unimplemented!()
+                let claims = token.id_token.payload()?;
+                let auth_code = token.access_token().to_string();
+                let mut resp = client.get(url.clone())?
+                    .header(header::Authorization(header::Bearer { token: auth_code })).send()?;
+                let info: Userinfo = resp.json()?;
+                if claims.sub != info.sub {
+                    return Err(error::Userinfo::MismatchSubject.into())
+                }
+                Ok(info)
             }
             None => Err(error::Userinfo::NoUrl.into())
         }

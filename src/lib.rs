@@ -3,6 +3,8 @@ extern crate biscuit;
 extern crate chrono;
 extern crate inth_oauth2;
 extern crate reqwest;
+// We never use serde, but serde_derive needs it here
+#[allow(unused_extern_crates)]
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;

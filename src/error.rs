@@ -71,6 +71,6 @@ pub enum Expiry {
 #[derive(Debug)]
 pub enum Userinfo {
     NoUrl,
+    MismatchIssuer,
     MismatchSubject,
-    
 }
