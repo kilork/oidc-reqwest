@@ -3,8 +3,8 @@ use biscuit::{CompactJson, Empty, SingleOrMultiple};
 use biscuit::jws::Compact;
 use inth_oauth2::client::response::{FromResponse, ParseError};
 use inth_oauth2::token::{self, Bearer, Lifetime};
+use reqwest::Url;
 use serde_json::Value;
-use url::Url;
 use url_serde;
 
 /// Rexported lifetime token types from oauth

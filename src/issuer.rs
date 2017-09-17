@@ -1,4 +1,4 @@
-use url::Url;
+use reqwest::Url;
 
 // TODO these should all be const, or even better, static Urls...
 

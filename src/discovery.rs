@@ -1,11 +1,11 @@
 use biscuit::Empty;
 use biscuit::jwk::JWKSet;
 use inth_oauth2::provider::Provider;
-use url::Url;
+use reqwest::{Client, Url};
 use url_serde;
 use validator::Validate;
 
-use error::{Error, ErrorKind, Result};
+use error::Error;
 use token::{Expiring, Token};
 
 #[derive(Deserialize, Serialize)]
@@ -124,10 +124,24 @@ impl Provider for Discovered {
     }
 }
 
-pub fn discover(issuer: &Url) -> Result<Config> {
-    unimplemented!()
+/// Get the discovery config document from the given issuer url. Errors are either a reqwest error
+/// or an Insecure if the Url isn't https.
+pub fn discover(client: &Client, issuer: Url) -> Result<Config, Error> {
+    if issuer.scheme() != "https" {
+        return Err(Error::Insecure)
+    }
+
+    let mut resp = client.get(issuer)?.send()?;
+    resp.json().map_err(Error::from)
 }
 
-pub fn jwks(url: &Url) -> Result<JWKSet<Empty>> {
-    unimplemented!()
+/// Get the JWK set from the given Url. Errors are either a reqwest error or an Insecure error if 
+/// the url isn't https.
+pub fn jwks(client: &Client, url: Url) -> Result<JWKSet<Empty>, Error> {
+    if url.scheme() != "https" {
+        return Err(Error::Insecure)
+    }
+
+    let mut resp = client.get(url)?.send()?;
+    resp.json().map_err(Error::from)
 }
