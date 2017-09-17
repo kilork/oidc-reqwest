@@ -71,7 +71,18 @@ impl ErrorTrait for Error {
     }
 
     fn cause(&self) -> Option<&ErrorTrait> {
-        unimplemented!()
+        use Error::*;
+        match *self {
+            Jose(ref err)       => Some(err),
+            Json(ref err)       => Some(err),
+            Oauth(ref err)      => Some(err),
+            Reqwest(ref err)    => Some(err),
+            Decode(ref err)     => None,
+            Validation(ref err) => None,
+            Userinfo(ref err)   => None,
+            Insecure(_)         => None,
+            MissingOpenidScope  => None,
+        }
     }
 }
 
