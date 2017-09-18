@@ -2,6 +2,7 @@ pub use biscuit::errors::Error as Jose;
 pub use serde_json::Error as Json;
 pub use inth_oauth2::ClientError as Oauth;
 pub use reqwest::Error as Reqwest;
+pub use reqwest::UrlError as Url;
 
 use std::fmt::{Display, Formatter, Result};
 use std::error::Error as ErrorTrait;
@@ -22,6 +23,7 @@ pub enum Error {
     Json(Json),
     Oauth(Oauth),
     Reqwest(Reqwest),
+    Url(Url),
     Decode(Decode),
     Validation(Validation),
     Userinfo(Userinfo),
@@ -33,6 +35,7 @@ from!(Error, Jose);
 from!(Error, Json);
 from!(Error, Oauth);
 from!(Error, Reqwest);
+from!(Error, Url);
 from!(Error, Decode);
 from!(Error, Validation);
 from!(Error, Userinfo);
@@ -45,6 +48,7 @@ impl Display for Error {
             Json(ref err)       => Display::fmt(err, f),
             Oauth(ref err)      => Display::fmt(err, f),
             Reqwest(ref err)    => Display::fmt(err, f),
+            Url(ref err)        => Display::fmt(err, f),
             Decode(ref err)     => Display::fmt(err, f),
             Validation(ref err) => Display::fmt(err, f),
             Userinfo(ref err)   => Display::fmt(err, f),
@@ -62,6 +66,7 @@ impl ErrorTrait for Error {
             Json(ref err)       => err.description(),
             Oauth(ref err)      => err.description(),
             Reqwest(ref err)    => err.description(),
+            Url(ref err)        => err.description(),
             Decode(ref err)     => err.description(),
             Validation(ref err) => err.description(),
             Userinfo(ref err)   => err.description(),
@@ -77,9 +82,10 @@ impl ErrorTrait for Error {
             Json(ref err)       => Some(err),
             Oauth(ref err)      => Some(err),
             Reqwest(ref err)    => Some(err),
-            Decode(ref err)     => None,
-            Validation(ref err) => None,
-            Userinfo(ref err)   => None,
+            Url(ref err)        => Some(err),
+            Decode(_)           => None,
+            Validation(_)       => None,
+            Userinfo(_)         => None,
             Insecure(_)         => None,
             MissingOpenidScope  => None,
         }
@@ -95,9 +101,10 @@ pub enum Decode {
 
 impl ErrorTrait for Decode {
     fn description(&self) -> &str {
-        match self {
+        use Decode::*;
+        match *self {
             MissingKid => "Missing Key Id",
-            &Decode::MissingKey(_) => "Token key not in key set",
+            MissingKey(_) => "Token key not in key set",
             EmptySet => "JWK Set is empty",
         }
     }
@@ -108,9 +115,10 @@ impl ErrorTrait for Decode {
 
 impl Display for Decode {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        match self {
+        use Decode::*;
+        match *self {
             MissingKid => write!(f, "Token Missing Key Id when key set has multiple keys"),
-            &Decode::MissingKey(ref id) => 
+            MissingKey(ref id) => 
                 write!(f, "Token wants this key id not in the key set: {}", id),
             EmptySet => write!(f, "JWK Set is empty!")
         }
@@ -137,7 +145,8 @@ impl ErrorTrait for Validation {
                 }
             }
             Missing(ref mi)  => {
-                match mi {
+                use Missing::*;
+                match *mi {
                     Audience        => "Token missing Audience",
                     AuthorizedParty => "Token missing AZP",
                     AuthTime        => "Token missing Auth Time",
@@ -200,7 +209,8 @@ pub enum Missing {
 
 impl Display for Missing {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        match self {
+        use Missing::*;
+        match *self {
             Audience        => write!(f, "Token missing Audience"),
             AuthorizedParty => write!(f, "Token missing AZP"),
             AuthTime        => write!(f, "Token missing Auth Time"),

@@ -13,3 +13,9 @@ pub fn paypal() -> Url {
 pub fn salesforce() -> Url {
     Url::parse("http://login.salesforce.com").unwrap()
 }
+
+#[test]
+fn google_disco() {
+    let client = ::reqwest::Client::new().unwrap();
+    let config = ::discovery::discover(&client, google()).unwrap();
+}

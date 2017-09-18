@@ -11,8 +11,7 @@ type IdToken = Compact<Claims, Empty>;
 
 #[derive(Serialize, Deserialize)]
 pub struct Claims {
-    #[serde(with = "url_serde")]
-    pub iss: Url,
+    #[serde(with = "url_serde")] pub iss: Url,
     // Max 255 ASCII chars
     // Can't deserialize a [u8; 255]
     pub sub: String,
@@ -27,14 +26,14 @@ pub struct Claims {
     pub exp: i64,
     pub iat: i64,
     // required for max_age request
-    pub auth_time: Option<i64>,
-    pub nonce: Option<String>,
+    #[serde(default)] pub auth_time: Option<i64>,
+    #[serde(default)] pub nonce: Option<String>,
     // base64 encoded, need to decode it!
-    at_hash: Option<String>,
-    pub acr: Option<String>,
-    pub amr: Option<Vec<String>>,
+    #[serde(default)] at_hash: Option<String>,
+    #[serde(default)] pub acr: Option<String>,
+    #[serde(default)] pub amr: Option<Vec<String>>,
     // If exists, must be client_id
-    pub azp: Option<String>,
+    #[serde(default)] pub azp: Option<String>,
 }
 
 impl Claims {

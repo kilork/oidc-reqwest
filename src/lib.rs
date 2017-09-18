@@ -425,7 +425,8 @@ pub enum Display {
 
 impl Display {
     fn as_str(&self) -> &'static str {
-        match self {
+        use Display::*;
+        match *self {
             Page => "page",
             Popup => "popup",
             Touch => "touch",
@@ -444,8 +445,9 @@ pub enum Prompt {
 
 impl Prompt {
     fn as_str(&self) -> &'static str {
-        match self {
-            &Prompt::None => "none",
+        use Prompt::*;
+        match *self {
+            None => "none",
             Login => "login",
             Consent => "consent",
             SelectAccount => "select_account",
@@ -456,11 +458,11 @@ impl Prompt {
 /// Address Claim struct. Can be only formatted, only the rest, or both.
 #[derive(Deserialize)]
 pub struct Address {
-    pub formatted: Option<String>,
-    pub street_address: Option<String>,
-    pub locality: Option<String>,
-    pub region: Option<String>,
+    #[serde(default)] pub formatted: Option<String>,
+    #[serde(default)] pub street_address: Option<String>,
+    #[serde(default)] pub locality: Option<String>,
+    #[serde(default)] pub region: Option<String>,
     // Countries like the UK use alphanumeric postal codes, so you can't just use a number here
-    pub postal_code: Option<String>,
-    pub country: Option<String>,
+    #[serde(default)] pub postal_code: Option<String>,
+    #[serde(default)] pub country: Option<String>,
 }
