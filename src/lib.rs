@@ -466,3 +466,30 @@ pub struct Address {
     #[serde(default)] pub postal_code: Option<String>,
     #[serde(default)] pub country: Option<String>,
 }
+
+#[test]
+fn google() {
+    let id = "test".to_string();
+    let secret = "a secret to everybody".to_string();
+    let redirect = Url::parse("https://example.com/re").unwrap();
+    let client = Client::discover(id, secret, redirect, issuer::google()).unwrap();
+    client.auth_url(&Default::default()).unwrap();
+}
+
+#[test]
+fn paypal() {
+    let id = "test".to_string();
+    let secret = "a secret to everybody".to_string();
+    let redirect = Url::parse("https://example.com/re").unwrap();
+    let client = Client::discover(id, secret, redirect, issuer::paypal()).unwrap();
+    client.auth_url(&Default::default()).unwrap();
+}
+
+#[test]
+fn salesforce() {
+    let id = "test".to_string();
+    let secret = "a secret to everybody".to_string();
+    let redirect = Url::parse("https://example.com/re").unwrap();
+    let client = Client::discover(id, secret, redirect, issuer::salesforce()).unwrap();
+    client.auth_url(&Default::default()).unwrap();
+}
