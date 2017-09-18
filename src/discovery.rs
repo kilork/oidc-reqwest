@@ -110,6 +110,7 @@ pub fn jwks(client: &Client, url: Url) -> Result<JWKSet<Empty>, Error> {
 
 #[test]
 fn config_google() {
+    // Formatting this took time off my lifespan...
     let cfg = r#"{  "issuer": "https://accounts.google.com", 
                     "authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth",
                     "token_endpoint": "https://www.googleapis.com/oauth2/v4/token",
@@ -129,7 +130,7 @@ fn config_google() {
                                           "sub" ],
                     "code_challenge_methods_supported": [ "plain", "S256" ]
                   }"#;
-    println!("{:?}", ::serde_json::from_str::<Config>(cfg).unwrap());
+    ::serde_json::from_str::<Config>(cfg).unwrap();
 }
 
 #[test]
@@ -142,5 +143,5 @@ fn config_minimum() {
                     "subject_types_supported": [ "public" ],
                     "id_token_signing_alg_values_supported": [ "RS256" ]
                   }"#;
-    println!("{:?}", ::serde_json::from_str::<Config>(cfg).unwrap());
+    ::serde_json::from_str::<Config>(cfg).unwrap();
 }

@@ -11,11 +11,23 @@ pub fn paypal() -> Url {
 }
 
 pub fn salesforce() -> Url {
-    Url::parse("http://login.salesforce.com").unwrap()
+    Url::parse("https://login.salesforce.com").unwrap()
 }
 
 #[test]
 fn google_disco() {
     let client = ::reqwest::Client::new().unwrap();
-    let config = ::discovery::discover(&client, google()).unwrap();
+    ::discovery::discover(&client, google()).unwrap();
+}
+
+#[test]
+fn paypal_disco() {
+    let client = ::reqwest::Client::new().unwrap();
+    ::discovery::discover(&client, paypal()).unwrap();
+}
+
+#[test]
+fn salesforce_disco() {
+    let client = ::reqwest::Client::new().unwrap();
+    ::discovery::discover(&client, salesforce()).unwrap();
 }
