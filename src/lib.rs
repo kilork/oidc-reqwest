@@ -145,6 +145,7 @@ impl Client {
         }
     }
 
+    /// Passthrough to the inth_oauth2::client's request token.
     pub fn request_token(&self,
                          client: &reqwest::Client,
                          auth_code: &str,
@@ -219,9 +220,19 @@ impl Client {
         Ok(token)
     }
 
+    /// Mutates a Compact::encoded Token to Compact::decoded. Errors are:
+    ///
+    /// - Decode::MissingKid if the keyset has multiple keys but the key id on the token is missing
+    /// - Decode::MissingKey if the given key id is not in the key set
+    /// - Decode::EmptySet if the keyset is empty
+    /// - Jose::WrongKeyType if the alg of the key and the alg in the token header mismatch
+    /// - Jose::WrongKeyType if the specified key alg isn't a signature algorithm
+    /// - Jose error if decoding fails
     pub fn decode_token(&self, token: &mut IdToken) -> Result<(), Error> {
-        // This is an early escape if the token is already decoded
-        token.encoded()?;
+        // This is an early return if the token is already decoded
+        if let Compact::Decoded { .. } = *token {
+            return Ok(())
+        }
 
         let header = token.unverified_header()?;
         // If there is more than one key, the token MUST have a key id
@@ -229,13 +240,15 @@ impl Client {
             let token_kid = header.registered.key_id.ok_or(Decode::MissingKid)?;
             self.jwks.find(&token_kid).ok_or(Decode::MissingKey(token_kid))?
         } else {
+            // TODO We would want to verify the keyset is >1 in the constructor
+            // rather than every decode call, but we can't return an error in new().
             self.jwks.keys.first().as_ref().ok_or(Decode::EmptySet)?
         };
 
         if let Some(alg) = key.common.algorithm.as_ref() {
-            if let &jwa::Algorithm::Signature(alg) = alg {
-                if header.registered.algorithm != alg {
-                    return wrong_key!(alg, header.registered.algorithm);
+            if let &jwa::Algorithm::Signature(sig) = alg {
+                if header.registered.algorithm != sig {
+                    return wrong_key!(sig, header.registered.algorithm);
                 }
             } else {
                 return  wrong_key!(SignatureAlgorithm::default(), alg);
@@ -275,6 +288,19 @@ impl Client {
         }
     }
 
+    /// Validate a decoded token. If you don't get an error, its valid! Nonce and max_age come from
+    /// your auth_uri options. Errors are:
+    ///
+    /// - Jose Error if the Token isn't decoded
+    /// - Validation::Mismatch::Issuer if the provider issuer and token issuer mismatch
+    /// - Validation::Mismatch::Nonce if a given nonce and the token nonce mismatch
+    /// - Validation::Missing::Nonce if either the token or args has a nonce and the other does not
+    /// - Validation::Missing::Audience if the token aud doesn't contain the client id
+    /// - Validation::Missing::AuthorizedParty if there are multiple audiences and azp is missing
+    /// - Validation::Mismatch::AuthorizedParty if the azp is not the client_id
+    /// - Validation::Expired::Expires if the current time is past the expiration time
+    /// - Validation::Expired::MaxAge is the token is older than the provided max_age
+    /// - Validation::Missing::Authtime if a max_age was given and the token has no auth time
     pub fn validate_token(
         &self, 
         token: &IdToken, 
@@ -283,15 +309,14 @@ impl Client {
     ) -> Result<(), Error> {
         let claims = token.payload()?;
 
-
         if claims.iss != self.config().issuer  {
             let expected = self.config().issuer.as_str().to_string();
             let actual = claims.iss.as_str().to_string();
             return Err(Validation::Mismatch(Mismatch::Issuer { expected, actual }).into());
         }
 
-        if let Some(expected) = nonce {
-            match claims.nonce {
+        match nonce {
+            Some(expected) => match claims.nonce {
                 Some(ref actual) => {
                     if expected != actual {
                         let expected = expected.to_string();
@@ -301,6 +326,9 @@ impl Client {
                     }
                 }
                 None => return Err(Validation::Missing(Missing::Nonce).into()),
+            }
+            None => if claims.nonce.is_some() { 
+                return Err(Validation::Missing(Missing::Nonce).into()) 
             }
         }
 
@@ -318,7 +346,9 @@ impl Client {
             if actual != &self.oauth.client_id {
                 let expected = self.oauth.client_id.to_string();
                 let actual = actual.to_string();
-                return Err(Validation::Mismatch(Mismatch::Authorized { expected, actual }).into());
+                return Err(Validation::Mismatch(Mismatch::AuthorizedParty { 
+                    expected, actual 
+                }).into());
             }
         }
 
@@ -348,6 +378,16 @@ impl Client {
         Ok(())
     }
 
+    /// Get a userinfo json document for a given token at the provider's userinfo endpoint.
+    /// Errors are:
+    ///
+    /// - Userinfo::NoUrl if this provider doesn't have a userinfo endpoint
+    /// - Error::Insecure if the userinfo url is not https
+    /// - Userinfo::MismatchIssuer if the userinfo origin does not match the provider's issuer
+    /// - Error::Jose if the token is not decoded
+    /// - Error::Http if something goes wrong getting the document
+    /// - Error::Json if the response is not a valid Userinfo document
+    /// - Userinfo::MismatchSubject if the returned userinfo document and tokens subject mismatch
     pub fn request_userinfo(&self, client: &reqwest::Client, token: &Token
     ) -> Result<Userinfo, Error> {
         match self.config().userinfo_endpoint {
@@ -361,7 +401,8 @@ impl Client {
                 let claims = token.id_token.payload()?;
                 let auth_code = token.access_token().to_string();
                 let mut resp = client.get(url.clone())?
-                    .header(header::Authorization(header::Bearer { token: auth_code })).send()?;
+                    .header(header::Authorization(header::Bearer { token: auth_code }))
+                    .send()?;
                 let info: Userinfo = resp.json()?;
                 if claims.sub != info.sub {
                     let expected = info.sub.clone();
@@ -423,6 +464,7 @@ pub struct Userinfo {
     #[serde(default)] pub updated_at: Option<i64>,
 }
 
+/// The four values for the preferred display parameter in the Options. See spec for details.
 pub enum Display {
     Page,
     Popup,
@@ -442,6 +484,7 @@ impl Display {
     }
 }
 
+/// The four possible values for the prompt parameter set in Options. See spec for details.
 #[derive(PartialEq, Eq, Hash)]
 pub enum Prompt {
     None,

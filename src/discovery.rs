@@ -16,6 +16,7 @@ pub(crate) fn secure(url: &Url) -> Result<(), Error> {
     }
 }
 
+// TODO I wish we could impl default for this, but you cannot have a config without issuer etc
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
     #[serde(with = "url_serde")] pub issuer: Url,

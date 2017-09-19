@@ -1,7 +1,7 @@
 pub use biscuit::errors::Error as Jose;
 pub use serde_json::Error as Json;
 pub use inth_oauth2::ClientError as Oauth;
-pub use reqwest::Error as Reqwest;
+pub use reqwest::Error as Http;
 pub use reqwest::UrlError as Url;
 
 use std::fmt::{Display, Formatter, Result};
@@ -22,7 +22,7 @@ pub enum Error {
     Jose(Jose),
     Json(Json),
     Oauth(Oauth),
-    Reqwest(Reqwest),
+    Http(Http),
     Url(Url),
     Decode(Decode),
     Validation(Validation),
@@ -34,7 +34,7 @@ pub enum Error {
 from!(Error, Jose);
 from!(Error, Json);
 from!(Error, Oauth);
-from!(Error, Reqwest);
+from!(Error, Http);
 from!(Error, Url);
 from!(Error, Decode);
 from!(Error, Validation);
@@ -47,7 +47,7 @@ impl Display for Error {
             Jose(ref err)       => Display::fmt(err, f),
             Json(ref err)       => Display::fmt(err, f),
             Oauth(ref err)      => Display::fmt(err, f),
-            Reqwest(ref err)    => Display::fmt(err, f),
+            Http(ref err)       => Display::fmt(err, f),
             Url(ref err)        => Display::fmt(err, f),
             Decode(ref err)     => Display::fmt(err, f),
             Validation(ref err) => Display::fmt(err, f),
@@ -65,7 +65,7 @@ impl ErrorTrait for Error {
             Jose(ref err)       => err.description(),
             Json(ref err)       => err.description(),
             Oauth(ref err)      => err.description(),
-            Reqwest(ref err)    => err.description(),
+            Http(ref err)       => err.description(),
             Url(ref err)        => err.description(),
             Decode(ref err)     => err.description(),
             Validation(ref err) => err.description(),
@@ -81,7 +81,7 @@ impl ErrorTrait for Error {
             Jose(ref err)       => Some(err),
             Json(ref err)       => Some(err),
             Oauth(ref err)      => Some(err),
-            Reqwest(ref err)    => Some(err),
+            Http(ref err)       => Some(err),
             Url(ref err)        => Some(err),
             Decode(_)           => None,
             Validation(_)       => None,
@@ -117,7 +117,7 @@ impl Display for Decode {
     fn fmt(&self, f: &mut Formatter) -> Result {
         use Decode::*;
         match *self {
-            MissingKid => write!(f, "Token Missing Key Id when key set has multiple keys"),
+            MissingKid => write!(f, "Token Missing a Key Id when the key set has multiple keys"),
             MissingKey(ref id) => 
                 write!(f, "Token wants this key id not in the key set: {}", id),
             EmptySet => write!(f, "JWK Set is empty!")
@@ -139,9 +139,9 @@ impl ErrorTrait for Validation {
             Mismatch(ref mm) => {
                 use error::Mismatch::*;
                 match *mm {
-                    Authorized {..} => "Client id and token authorized party mismatch",
-                    Issuer {..}     => "Config issuer and token issuer mismatch",
-                    Nonce {..}      => "Supplied nonce and token nonce mismatch",
+                    AuthorizedParty {..}    => "Client id and token authorized party mismatch",
+                    Issuer {..}             => "Config issuer and token issuer mismatch",
+                    Nonce {..}              => "Supplied nonce and token nonce mismatch",
                 }
             }
             Missing(ref mi)  => {
@@ -180,7 +180,7 @@ impl Display for Validation {
 
 #[derive(Debug)]
 pub enum Mismatch {
-    Authorized { expected: String, actual: String },
+    AuthorizedParty { expected: String, actual: String },
     Issuer { expected: String, actual: String },
     Nonce { expected: String, actual: String },
 }
@@ -189,7 +189,7 @@ impl Display for Mismatch {
     fn fmt(&self, f: &mut Formatter) -> Result {
         use error::Mismatch::*;
         match *self {
-            Authorized  { ref expected, ref actual } => 
+            AuthorizedParty  { ref expected, ref actual } => 
         write!(f, "Client ID and Token authorized party mismatch: '{}', '{}'", expected, actual),
             Issuer      { ref expected, ref actual } => 
             write!(f, "Configured issuer and token issuer mismatch: '{}' '{}'", expected, actual),
