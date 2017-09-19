@@ -3,7 +3,8 @@
 //! There are two ways to interact with this library - the batteries included magic methods, and
 //! the slightly more boilerplate but more fine grained ones. For most users the following is what
 //! you want.
-//! ```
+//!
+//! ```rust,ignore
 //! use oidc;
 //! use reqwest;
 //! use std::default::Default;
@@ -21,11 +22,13 @@
 //! 
 //! let token = client.authenticate(auth_code, Options::default())?;
 //! ```
+//!
 //! That example leaves you with a decoded `Token` that has been validated. Your user is 
 //! authenticated!
 //!
 //! You can also take a more nuanced approach that gives you more fine grained control:
-//! ```
+//!
+//! ```rust,ignore
 //! use oidc;
 //! use reqwest;
 //! use std::default::Default;
@@ -51,13 +54,16 @@
 //! 
 //! let userinfo = client.request_userinfo(&http, &token)?;
 //! ```
+//!
 //! This more complicated version uses the discovery module directly. Important distinctions to make
 //! between the two:
+//!
 //! - The complex pattern avoids constructing a new reqwest client every time an outbound method is
 //!   called. Especially for token decoding having to rebuild reqwest every time can be a large
 //!   performance penalty.
 //! - Tokens don't come decoded or validated. You need to do both manually.
 //! - This version demonstrates userinfo. It is not required by spec, so make sure its available!
+
 extern crate base64;
 extern crate biscuit;
 extern crate chrono;
@@ -113,6 +119,7 @@ macro_rules! wrong_key {
     )
 }
 
+/// OpenID Connect Client for a provider specified at construction.
 impl Client {
     /// Constructs a client from an issuer url and client parameters via discovery
     pub fn discover(id: String, secret: String, redirect: Url, issuer: Url) -> Result<Self, Error> {
@@ -126,7 +133,8 @@ impl Client {
 
     /// Constructs a client from a given provider, key set, and parameters. Unlike ::discover(..) 
     /// this function does not perform any network operations.
-    pub fn new(id: String, secret: String, redirect: Url, provider: Discovered, jwks: JWKSet<Empty>) -> Self {
+    pub fn new(id: String, secret: 
+        String, redirect: Url, provider: Discovered, jwks: JWKSet<Empty>) -> Self {
         Client {
             oauth: inth_oauth2::Client::new(
                 provider, 
@@ -320,7 +328,9 @@ impl Client {
             panic!("chrono::Utc::now() can never be before this was written!")
         }
         if claims.exp <= now.timestamp() {
-            return Err(Validation::Expired(Expiry::Expires(chrono::naive::NaiveDateTime::from_timestamp(claims.exp, 0))).into());
+            return Err(Validation::Expired(
+                Expiry::Expires(
+                    chrono::naive::NaiveDateTime::from_timestamp(claims.exp, 0))).into());
         }
 
         if let Some(max) = max_age {
@@ -338,7 +348,8 @@ impl Client {
         Ok(())
     }
 
-    pub fn request_userinfo(&self, client: &reqwest::Client, token: &Token) -> Result<Userinfo, Error> {
+    pub fn request_userinfo(&self, client: &reqwest::Client, token: &Token
+    ) -> Result<Userinfo, Error> {
         match self.config().userinfo_endpoint {
             Some(ref url) => {
                 discovery::secure(&url)?;
@@ -386,34 +397,30 @@ pub struct Options {
 #[derive(Deserialize, Validate)]
 pub struct Userinfo {
     pub sub: String,
-    pub name: Option<String>,
-    pub given_name: Option<String>,
-    pub family_name: Option<String>,
-    pub middle_name: Option<String>,
-    pub nickname: Option<String>,
-    pub preferred_username: Option<String>,
-    #[serde(with = "url_serde")]
-    pub profile: Option<Url>,
-    #[serde(with = "url_serde")]
-    pub picture: Option<Url>,
-    #[serde(with = "url_serde")]
-    pub website: Option<Url>,
-    #[validate(email)]
-    pub email: Option<String>,
-    pub email_verified: Option<bool>,
+    #[serde(default)] pub name: Option<String>,
+    #[serde(default)] pub given_name: Option<String>,
+    #[serde(default)] pub family_name: Option<String>,
+    #[serde(default)] pub middle_name: Option<String>,
+    #[serde(default)] pub nickname: Option<String>,
+    #[serde(default)] pub preferred_username: Option<String>,
+    #[serde(default)] #[serde(with = "url_serde")] pub profile: Option<Url>,
+    #[serde(default)] #[serde(with = "url_serde")] pub picture: Option<Url>,
+    #[serde(default)] #[serde(with = "url_serde")] pub website: Option<Url>,
+    #[serde(default)] #[validate(email)] pub email: Option<String>,
+    #[serde(default)] pub email_verified: Option<bool>,
     // Isn't required to be just male or female
-    pub gender: Option<String>,
+    #[serde(default)] pub gender: Option<String>,
     // ISO 9601:2004 YYYY-MM-DD or YYYY. Would be nice to serialize to chrono::Date.
-    pub birthdate: Option<String>,
+    #[serde(default)] pub birthdate: Option<String>,
     // Region/City codes. Should also have a more concrete serializer form.
-    pub zoneinfo: Option<String>,
+    #[serde(default)] pub zoneinfo: Option<String>,
     // Usually RFC5646 langcode-countrycode, maybe with a _ sep, could be arbitrary
-    pub locale: Option<String>,
+    #[serde(default)] pub locale: Option<String>,
     // Usually E.164 format number
-    pub phone_number: Option<String>,
-    pub phone_number_verified: Option<bool>,
-    pub address: Option<Address>,
-    pub updated_at: Option<i64>,
+    #[serde(default)] pub phone_number: Option<String>,
+    #[serde(default)] pub phone_number_verified: Option<bool>,
+    #[serde(default)] pub address: Option<Address>,
+    #[serde(default)] pub updated_at: Option<i64>,
 }
 
 pub enum Display {
