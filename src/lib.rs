@@ -14,13 +14,11 @@
 //! let redirect = reqwest::Url::parse("https://my-redirect.foo")?;
 //! let issuer = oidc::issuer::google();
 //! let client = oidc::discover(id, secret, redirect, issuer)?;
-//! let scope = "openid";
-//! let state = "randomstring";
 //! let auth_url = client.auth_url(Default::default())?;
 //! 
 //! // ... send your user to auth_url, get an auth_code back at your redirect_url handler
 //! 
-//! let token = client.authenticate(auth_code, Options::default())?;
+//! let token = client.authenticate(auth_code, Default::default())?;
 //! ```
 //!
 //! That example leaves you with a decoded `Token` that has been validated. Your user is 
@@ -51,7 +49,6 @@
 //! let mut token = client.request_token(&http, auth_code)?;
 //! client.decode_token(&mut token)?;
 //! client.validate_token(&token, None, None)?;
-//! 
 //! let userinfo = client.request_userinfo(&http, &token)?;
 //! ```
 //!
@@ -63,6 +60,7 @@
 //!   performance penalty.
 //! - Tokens don't come decoded or validated. You need to do both manually.
 //! - This version demonstrates userinfo. It is not required by spec, so make sure its available!
+//!   (you get an Error::Userinfo::Nourl if it is not)
 
 extern crate base64;
 extern crate biscuit;
@@ -102,9 +100,9 @@ use token::{Claims, Token};
 
 type IdToken = Compact<Claims, Empty>;
 
-
+/// OpenID Connect Client for a provider specified at construction.
 pub struct Client {
-    oauth: inth_oauth2::Client<Discovered>,
+    pub oauth: inth_oauth2::Client<Discovered>,
     jwks: JWKSet<Empty>,
 }
 
@@ -119,7 +117,6 @@ macro_rules! wrong_key {
     )
 }
 
-/// OpenID Connect Client for a provider specified at construction.
 impl Client {
     /// Constructs a client from an issuer url and client parameters via discovery
     pub fn discover(id: String, secret: String, redirect: Url, issuer: Url) -> Result<Self, Error> {
