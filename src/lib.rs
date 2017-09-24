@@ -144,7 +144,7 @@ impl Client {
 
     /// Passthrough to the redirect_url stored in inth_oauth2 as a str.
     pub fn redirect_url(&self) -> &str {
-        self.oauth.redirect_uri.as_ref().unwrap()
+        self.oauth.redirect_uri.as_ref().expect("We always require a redirect to construct client!")
     }
 
     /// Passthrough to the inth_oauth2::client's request token.
