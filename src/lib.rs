@@ -102,7 +102,7 @@ type IdToken = Compact<Claims, Empty>;
 
 /// OpenID Connect Client for a provider specified at construction.
 pub struct Client {
-    pub oauth: inth_oauth2::Client<Discovered>,
+    oauth: inth_oauth2::Client<Discovered>,
     jwks: JWKSet<Empty>,
 }
 
@@ -140,6 +140,11 @@ impl Client {
                 Some(redirect.into_string())),
             jwks
         }
+    }
+
+    /// Passthrough to the redirect_url stored in inth_oauth2 as a str.
+    pub fn redirect_url(&self) -> &str {
+        self.oauth.redirect_uri.as_ref().unwrap()
     }
 
     /// Passthrough to the inth_oauth2::client's request token.
