@@ -211,14 +211,12 @@ impl Client {
     }
 
     /// Given an auth_code and auth options, request the token, decode, and validate it.
-    pub fn authenticate(&self, auth_code: &str, options: &Options
+    pub fn authenticate(&self, auth_code: &str, nonce: Option<&str>, max_age: Option<&Duration>
     ) -> Result<Token, Error> {
         let client = reqwest::Client::new()?;
         let mut token = self.request_token(&client, auth_code)?;
         self.decode_token(&mut token.id_token)?;
-        self.validate_token(&token.id_token, 
-            options.nonce.as_ref().map(String::as_ref), 
-            options.max_age.as_ref())?;
+        self.validate_token(&token.id_token, nonce, max_age)?;
         Ok(token)
     }
 
