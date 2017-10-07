@@ -1,14 +1,16 @@
 use base64;
 use biscuit::{CompactJson, Empty, SingleOrMultiple};
-use biscuit::jws::Compact;
 use inth_oauth2::client::response::{FromResponse, ParseError};
 use inth_oauth2::token::{self, Bearer, Expiring};
 use reqwest::Url;
 use serde_json::Value;
 use url_serde;
 
-type IdToken = Compact<Claims, Empty>;
+pub use biscuit::jws::Compact as Jws;
 
+type IdToken = Jws<Claims, Empty>;
+
+/// ID Token contents. [See spec.](https://openid.net/specs/openid-connect-basic-1_0.html#IDToken) 
 #[derive(Serialize, Deserialize)]
 pub struct Claims {
     #[serde(with = "url_serde")] pub iss: Url,
@@ -70,7 +72,7 @@ impl Token {
         let token = obj.get("id_token").and_then(Value::as_str).ok_or(
             ParseError::ExpectedFieldType("id_token", "string"),
         )?;
-        Ok(Compact::new_encoded(token))
+        Ok(Jws::new_encoded(token))
     }
 }
 

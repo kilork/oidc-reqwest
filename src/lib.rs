@@ -18,7 +18,7 @@
 //! 
 //! // ... send your user to auth_url, get an auth_code back at your redirect_url handler
 //! 
-//! let token = client.authenticate(auth_code, Default::default())?;
+//! let token = client.authenticate(auth_code, None, None)?;
 //! ```
 //!
 //! That example leaves you with a decoded `Token` that has been validated. Your user is 
@@ -420,6 +420,9 @@ impl Client {
 /// Derives Default, so remember to ..Default::default() after you specify what you want.
 #[derive(Default)]
 pub struct Options {
+    /// MUST contain openid. By default this is ONLY openid. Official optional scopes are
+    /// email, profile, address, phone, offline_access. Check the Discovery config 
+    /// `scopes_supported` to see what is available at your provider!
     pub scope: Option<String>,
     pub state: Option<String>,
     pub nonce: Option<String>,
