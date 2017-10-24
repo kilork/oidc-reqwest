@@ -452,7 +452,7 @@ pub struct Userinfo {
     #[serde(default)] #[serde(with = "url_serde")] pub picture: Option<Url>,
     #[serde(default)] #[serde(with = "url_serde")] pub website: Option<Url>,
     #[serde(default)] #[validate(email)] pub email: Option<String>,
-    #[serde(default)] pub email_verified: Option<bool>,
+    #[serde(default)] pub email_verified: bool,
     // Isn't required to be just male or female
     #[serde(default)] pub gender: Option<String>,
     // ISO 9601:2004 YYYY-MM-DD or YYYY.
@@ -463,7 +463,7 @@ pub struct Userinfo {
     #[serde(default)] pub locale: Option<String>,
     // Usually E.164 format number
     #[serde(default)] pub phone_number: Option<String>,
-    #[serde(default)] pub phone_number_verified: Option<bool>,
+    #[serde(default)] pub phone_number_verified: bool,
     #[serde(default)] pub address: Option<Address>,
     #[serde(default)] pub updated_at: Option<i64>,
 }
