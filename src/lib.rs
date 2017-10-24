@@ -89,7 +89,7 @@ use biscuit::{Empty, SingleOrMultiple};
 use biscuit::jwa::{self, SignatureAlgorithm};
 use biscuit::jwk::{AlgorithmParameters, JWKSet};
 use biscuit::jws::{Compact, Secret};
-use chrono::{Duration, Utc};
+use chrono::{Duration, NaiveDate, Utc};
 use inth_oauth2::token::Token as _t;
 use reqwest::{header, Url};
 use validator::Validate;
@@ -455,8 +455,8 @@ pub struct Userinfo {
     #[serde(default)] pub email_verified: Option<bool>,
     // Isn't required to be just male or female
     #[serde(default)] pub gender: Option<String>,
-    // ISO 9601:2004 YYYY-MM-DD or YYYY. Would be nice to serialize to chrono::Date.
-    #[serde(default)] pub birthdate: Option<String>,
+    // ISO 9601:2004 YYYY-MM-DD or YYYY.
+    #[serde(default)] pub birthdate: Option<NaiveDate>,
     // Region/City codes. Should also have a more concrete serializer form.
     #[serde(default)] pub zoneinfo: Option<String>,
     // Usually RFC5646 langcode-countrycode, maybe with a _ sep, could be arbitrary
