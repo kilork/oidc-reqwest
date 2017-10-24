@@ -83,12 +83,12 @@ pub struct Discovered {
 impl Provider for Discovered {
     type Lifetime = Expiring;
     type Token = Token;
-    fn auth_uri(&self) -> &str {
-        self.config.authorization_endpoint.as_ref()
+    fn auth_uri(&self) -> &Url {
+        &self.config.authorization_endpoint
     }
 
-    fn token_uri(&self) -> &str {
-        self.config.token_endpoint.as_ref()
+    fn token_uri(&self) -> &Url {
+        &self.config.token_endpoint
     }
 }
 
@@ -97,7 +97,7 @@ impl Provider for Discovered {
 pub fn discover(client: &Client, issuer: Url) -> Result<Config, Error> {
     secure(&issuer)?;
     let url = issuer.join("/.well-known/openid-configuration")?;
-    let mut resp = client.get(url)?.send()?;
+    let mut resp = client.get(url).send()?;
     resp.json().map_err(Error::from)
 }
 
@@ -105,7 +105,7 @@ pub fn discover(client: &Client, issuer: Url) -> Result<Config, Error> {
 /// the url isn't https.
 pub fn jwks(client: &Client, url: Url) -> Result<JWKSet<Empty>, Error> {
     secure(&url)?;
-    let mut resp = client.get(url)?.send()?;
+    let mut resp = client.get(url).send()?;
     resp.json().map_err(Error::from)
 }
 

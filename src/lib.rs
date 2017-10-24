@@ -14,7 +14,7 @@
 //! let redirect = reqwest::Url::parse("https://my-redirect.foo")?;
 //! let issuer = oidc::issuer::google();
 //! let client = oidc::discover(id, secret, redirect, issuer)?;
-//! let auth_url = client.auth_url(Default::default())?;
+//! let auth_url = client.auth_url(Default::default());
 //! 
 //! // ... send your user to auth_url, get an auth_code back at your redirect_url handler
 //! 
@@ -35,14 +35,14 @@
 //! let secret = "a secret to everybody".to_string();
 //! let redirect = reqwest::Url::parse("https://my-redirect.foo")?;
 //! let issuer = oidc::issuer::google();
-//! let http = reqwest::Client::new()?;
+//! let http = reqwest::Client::new();
 //! 
 //! let config = oidc::discovery::discover(&http, issuer)?;
 //! let jwks = oidc::discovery::jwks(&http, config.jwks_uri.clone())?;
 //! let provider = oidc::discovery::Discovered { config };
 //! 
 //! let client = oidc::new(id, secret, redirect, provider, jwks);
-//! let auth_url = client.auth_url(Default::default())?;
+//! let auth_url = client.auth_url(Default::default());
 //!
 //! // ... send your user to auth_url, get an auth_code back at your redirect_url handler
 //! 
@@ -121,7 +121,7 @@ impl Client {
     /// Constructs a client from an issuer url and client parameters via discovery
     pub fn discover(id: String, secret: String, redirect: Url, issuer: Url) -> Result<Self, Error> {
         discovery::secure(&redirect)?;
-        let client = reqwest::Client::new()?;
+        let client = reqwest::Client::new();
         let config = discovery::discover(&client, issuer)?;
         let jwks = discovery::jwks(&client, config.jwks_uri.clone())?;
         let provider = Discovered { config };
@@ -163,19 +163,20 @@ impl Client {
     /// Constructs the auth_url to redirect a client to the provider. Options are... optional. Use 
     /// them as needed. Keep the Options struct around for authentication, or at least the nonce 
     /// and max_age parameter - we need to verify they stay the same and validate if you used them.
-    pub fn auth_url(&self, options: &Options) -> Result<Url, Error>{
+    pub fn auth_url(&self, options: &Options) -> Url {
         let scope = match options.scope {
             Some(ref scope) => {
                 if !scope.contains("openid") {
-                    return Err(Error::MissingOpenidScope)
+                    String::from("openid ") + scope
+                } else {
+                    scope.clone()
                 }
-                scope
             }
             // Default scope value
-            None => "openid"
+            None => String::from("openid")
         };
 
-        let mut url = self.oauth.auth_uri(Some(scope), options.state.as_ref().map(String::as_str))?;
+        let mut url = self.oauth.auth_uri(Some(&scope), options.state.as_ref().map(String::as_str));
         {
             let mut query = url.query_pairs_mut();
             if let Some(ref nonce) = options.nonce {
@@ -207,13 +208,13 @@ impl Client {
                 query.append_pair("acr_values", acr_values.as_str());
             }
         }
-        Ok(url)
+        url
     }
 
     /// Given an auth_code and auth options, request the token, decode, and validate it.
     pub fn authenticate(&self, auth_code: &str, nonce: Option<&str>, max_age: Option<&Duration>
     ) -> Result<Token, Error> {
-        let client = reqwest::Client::new()?;
+        let client = reqwest::Client::new();
         let mut token = self.request_token(&client, auth_code)?;
         self.decode_token(&mut token.id_token)?;
         self.validate_token(&token.id_token, nonce, max_age)?;
@@ -400,7 +401,7 @@ impl Client {
                 }
                 let claims = token.id_token.payload()?;
                 let auth_code = token.access_token().to_string();
-                let mut resp = client.get(url.clone())?
+                let mut resp = client.get(url.clone())
                     .header(header::Authorization(header::Bearer { token: auth_code }))
                     .send()?;
                 let info: Userinfo = resp.json()?;
@@ -526,7 +527,7 @@ fn google() {
     let secret = "a secret to everybody".to_string();
     let redirect = Url::parse("https://example.com/re").unwrap();
     let client = Client::discover(id, secret, redirect, issuer::google()).unwrap();
-    client.auth_url(&Default::default()).unwrap();
+    client.auth_url(&Default::default());
 }
 
 #[test]
@@ -535,7 +536,7 @@ fn paypal() {
     let secret = "a secret to everybody".to_string();
     let redirect = Url::parse("https://example.com/re").unwrap();
     let client = Client::discover(id, secret, redirect, issuer::paypal()).unwrap();
-    client.auth_url(&Default::default()).unwrap();
+    client.auth_url(&Default::default());
 }
 
 #[test]
@@ -544,5 +545,5 @@ fn salesforce() {
     let secret = "a secret to everybody".to_string();
     let redirect = Url::parse("https://example.com/re").unwrap();
     let client = Client::discover(id, secret, redirect, issuer::salesforce()).unwrap();
-    client.auth_url(&Default::default()).unwrap();
+    client.auth_url(&Default::default());
 }

@@ -16,18 +16,18 @@ pub fn salesforce() -> Url {
 
 #[test]
 fn google_disco() {
-    let client = ::reqwest::Client::new().unwrap();
+    let client = ::reqwest::Client::new();
     ::discovery::discover(&client, google()).unwrap();
 }
 
 #[test]
 fn paypal_disco() {
-    let client = ::reqwest::Client::new().unwrap();
+    let client = ::reqwest::Client::new();
     ::discovery::discover(&client, paypal()).unwrap();
 }
 
 #[test]
 fn salesforce_disco() {
-    let client = ::reqwest::Client::new().unwrap();
+    let client = ::reqwest::Client::new();
     ::discovery::discover(&client, salesforce()).unwrap();
 }
