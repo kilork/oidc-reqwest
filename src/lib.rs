@@ -439,7 +439,7 @@ pub struct Options {
 
 /// The userinfo struct contains all possible userinfo fields regardless of scope. [See spec.](https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims)
 // TODO is there a way to use claims_supported in config to simplify this struct?
-#[derive(Deserialize, Validate)]
+#[derive(Serialize, Deserialize, Validate)]
 pub struct Userinfo {
     pub sub: String,
     #[serde(default)] pub name: Option<String>,
@@ -510,7 +510,7 @@ impl Prompt {
 }
 
 /// Address Claim struct. Can be only formatted, only the rest, or both.
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Address {
     #[serde(default)] pub formatted: Option<String>,
     #[serde(default)] pub street_address: Option<String>,
