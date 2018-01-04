@@ -10,7 +10,7 @@ keywords = ["sync", "authentication", "client", "reqwest",
 readme = "README.md"
 
 [dependencies]
-base64              = "0.7"
+base64              = "0.9"
 biscuit             = { git = "https://github.com/Korvox/biscuit" }
 chrono              = "0.4"
 inth-oauth2         = "0.15"
