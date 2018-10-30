@@ -6,8 +6,9 @@ description = "OpenID Connect client library using Reqwest, Biscuit, and inth-oa
 readme = "README.md"
 authors = ["Matthew Scheirer <matt.scheirer@gmail.com>"]
 categories = ["web-programming", "authentication"]
-keywords = ["sync", "authentication", "client", "reqwest", 
-            "oauth", "openid", "openid_connect", "web"]
+keywords = ["authentication", "client", "openid", "openid_connect", "web"]
+documentation = "https://docs.rs/crate/oidc/0.1.0"
+repository = "https://gitlab.com/zanny/oidc-reqwest"
 
 [dependencies]
 base64              = "0.10"
