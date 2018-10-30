@@ -91,7 +91,7 @@ use biscuit::jwk::{AlgorithmParameters, JWKSet};
 use biscuit::jws::{Compact, Secret};
 use chrono::{Duration, NaiveDate, Utc};
 use inth_oauth2::token::Token as _t;
-use reqwest::{header, Url};
+use reqwest::Url;
 use validator::Validate;
 
 use discovery::{Config, Discovered};
@@ -275,7 +275,7 @@ impl Client {
                     SignatureAlgorithm::RS256 |
                     SignatureAlgorithm::RS384 |
                     SignatureAlgorithm::RS512 => {
-                        let pkcs = Secret::Pkcs {
+                        let pkcs = Secret::RSAModulusExponent {
                             n: params.n.clone(),
                             e: params.e.clone(),
                         };
@@ -402,7 +402,9 @@ impl Client {
                 let claims = token.id_token.payload()?;
                 let auth_code = token.access_token().to_string();
                 let mut resp = client.get(url.clone())
-                    .header(header::Authorization(header::Bearer { token: auth_code }))
+                    // FIXME This is a transitional hack for Reqwest 0.9 that should be refactored
+                    // when upstream restores typed header support.
+                    .header_011(reqwest::hyper_011::header::Authorization(reqwest::hyper_011::header::Bearer { token: auth_code }))
                     .send()?;
                 let info: Userinfo = resp.json()?;
                 if claims.sub != info.sub {
