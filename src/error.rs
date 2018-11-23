@@ -238,7 +238,6 @@ impl Display for Expiry {
 #[derive(Debug)]
 pub enum Userinfo {
     NoUrl,
-    MismatchIssuer { expected: String, actual: String },
     MismatchSubject { expected: String, actual: String },
 }
 
@@ -247,7 +246,6 @@ impl ErrorTrait for Userinfo {
         use error::Userinfo::*;
         match *self {
             NoUrl                  => "No url",
-            MismatchIssuer  { .. } => "Mismatch issuer",
             MismatchSubject { .. } => "Mismatch subject"
         }
     }
@@ -262,8 +260,6 @@ impl Display for Userinfo {
         use error::Userinfo::*;
         match *self {
             NoUrl => write!(f, "Config has no userinfo url"),
-            MismatchIssuer  { ref expected, ref actual } => 
-                write!(f, "Token and Userinfo Issuers mismatch: '{}', '{}'", expected, actual),
             MismatchSubject { ref expected, ref actual } => 
                 write!(f, "Token and Userinfo Subjects mismatch: '{}', '{}'", expected, actual),
         }

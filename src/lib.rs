@@ -384,7 +384,6 @@ impl Client {
     ///
     /// - Userinfo::NoUrl if this provider doesn't have a userinfo endpoint
     /// - Error::Insecure if the userinfo url is not https
-    /// - Userinfo::MismatchIssuer if the userinfo origin does not match the provider's issuer
     /// - Error::Jose if the token is not decoded
     /// - Error::Http if something goes wrong getting the document
     /// - Error::Json if the response is not a valid Userinfo document
@@ -394,11 +393,6 @@ impl Client {
         match self.config().userinfo_endpoint {
             Some(ref url) => {
                 discovery::secure(&url)?;
-                if url.origin() != self.config().issuer.origin() {
-                    let expected = self.config().issuer.as_str().to_string();
-                    let actual = url.as_str().to_string();
-                    return Err(error::Userinfo::MismatchIssuer { expected, actual }.into());
-                }
                 let claims = token.id_token.payload()?;
                 let auth_code = token.access_token().to_string();
                 let mut resp = client.get(url.clone())
@@ -441,7 +435,7 @@ pub struct Options {
 
 /// The userinfo struct contains all possible userinfo fields regardless of scope. [See spec.](https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims)
 // TODO is there a way to use claims_supported in config to simplify this struct?
-#[derive(Serialize, Deserialize, Validate)]
+#[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct Userinfo {
     pub sub: String,
     #[serde(default)] pub name: Option<String>,
@@ -512,7 +506,7 @@ impl Prompt {
 }
 
 /// Address Claim struct. Can be only formatted, only the rest, or both.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Address {
     #[serde(default)] pub formatted: Option<String>,
     #[serde(default)] pub street_address: Option<String>,
