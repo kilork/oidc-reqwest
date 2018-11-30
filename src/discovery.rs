@@ -96,7 +96,10 @@ impl Provider for Discovered {
 /// or an Insecure if the Url isn't https.
 pub fn discover(client: &Client, issuer: Url) -> Result<Config, Error> {
     secure(&issuer)?;
-    let url = issuer.join("/.well-known/openid-configuration")?;
+    let mut url = issuer.clone();
+    url.path_segments_mut()
+       .expect("cannot be base")
+       .extend(&[".well-known", "openid-configuration"]);
     let mut resp = client.get(url).send()?;
     resp.json().map_err(Error::from)
 }
