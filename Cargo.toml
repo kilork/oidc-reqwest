@@ -1,6 +1,6 @@
 [package]
 name = "oidc"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Zanny <lordzanny@gmail.com>"]
 categories = ["web-programming", "authentication"]
 description = "OpenID Connect client library using Reqwest, Biscuit, and inth-oauth2"

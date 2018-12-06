@@ -1,8 +1,7 @@
 //! # OpenID Connect Client
 //!
 //! There are two ways to interact with this library - the batteries included magic methods, and
-//! the slightly more boilerplate but more fine grained ones. For most users the following is what
-//! you want.
+//! the slightly more boilerplate fine grained ones. For most users the former is what you want:
 //!
 //! ```rust,ignore
 //! use oidc;
@@ -11,12 +10,12 @@
 //! 
 //! let id = "my client".to_string();
 //! let secret = "a secret to everybody".to_string();
-//! let redirect = reqwest::Url::parse("https://my-redirect.foo")?;
+//! let redirect = reqwest::Url::parse("https://my-redirect.foo/dest")?;
 //! let issuer = oidc::issuer::google();
 //! let client = oidc::discover(id, secret, redirect, issuer)?;
 //! let auth_url = client.auth_url(Default::default());
 //! 
-//! // ... send your user to auth_url, get an auth_code back at your redirect_url handler
+//! // ... send your user to auth_url, get an auth_code back at your redirect url handler
 //! 
 //! let token = client.authenticate(auth_code, None, None)?;
 //! ```
@@ -33,7 +32,7 @@
 //! 
 //! let id = "my client".to_string();
 //! let secret = "a secret to everybody".to_string();
-//! let redirect = reqwest::Url::parse("https://my-redirect.foo")?;
+//! let redirect = reqwest::Url::parse("https://my-redirect.foo/dest")?;
 //! let issuer = oidc::issuer::google();
 //! let http = reqwest::Client::new();
 //! 
@@ -44,7 +43,7 @@
 //! let client = oidc::new(id, secret, redirect, provider, jwks);
 //! let auth_url = client.auth_url(Default::default());
 //!
-//! // ... send your user to auth_url, get an auth_code back at your redirect_url handler
+//! // ... send your user to auth_url, get an auth_code back at your redirect url handler
 //! 
 //! let mut token = client.request_token(&http, auth_code)?;
 //! client.decode_token(&mut token)?;
