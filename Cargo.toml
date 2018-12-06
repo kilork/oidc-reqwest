@@ -1,19 +1,21 @@
 [package]
 name = "oidc"
 version = "0.1.0"
-license = "Apache-2.0"
-description = "OpenID Connect client library using Reqwest, Biscuit, and inth-oauth2"
-readme = "README.md"
 authors = ["Zanny <lordzanny@gmail.com>"]
 categories = ["web-programming", "authentication"]
+description = "OpenID Connect client library using Reqwest, Biscuit, and inth-oauth2"
+documentation = "https://docs.rs/crate/oidc"
+edition = "2018"
 keywords = ["authentication", "client", "openid", "openid_connect", "web"]
-documentation = "https://docs.rs/crate/oidc/0.1.0"
+license = "Apache-2.0"
+readme = "README.md"
 repository = "https://gitlab.com/zanny/oidc-reqwest"
 
 [dependencies]
 base64              = "0.10"
 biscuit             = "0.1"
 chrono              = "0.4"
+failure             = "0.1"
 inth-oauth2         = "0.16"
 reqwest             = { version = "0.9", features = ["hyper-011"] }
 serde               = "1"

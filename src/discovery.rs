@@ -76,19 +76,17 @@ fn tru() -> bool {
     true
 }
 
-pub struct Discovered {
-    pub config: Config,
-}
+pub struct Discovered(pub Config);
 
 impl Provider for Discovered {
     type Lifetime = Expiring;
     type Token = Token;
     fn auth_uri(&self) -> &Url {
-        &self.config.authorization_endpoint
+        &self.0.authorization_endpoint
     }
 
     fn token_uri(&self) -> &Url {
-        &self.config.token_endpoint
+        &self.0.token_endpoint
     }
 }
 

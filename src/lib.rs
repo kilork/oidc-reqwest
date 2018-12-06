@@ -39,7 +39,7 @@
 //! 
 //! let config = oidc::discovery::discover(&http, issuer)?;
 //! let jwks = oidc::discovery::jwks(&http, config.jwks_uri.clone())?;
-//! let provider = oidc::discovery::Discovered { config };
+//! let provider = oidc::discovery::Discovered(config);
 //! 
 //! let client = oidc::new(id, secret, redirect, provider, jwks);
 //! let auth_url = client.auth_url(Default::default());
@@ -124,7 +124,7 @@ impl Client {
         let client = reqwest::Client::new();
         let config = discovery::discover(&client, issuer)?;
         let jwks = discovery::jwks(&client, config.jwks_uri.clone())?;
-        let provider = Discovered { config };
+        let provider = Discovered(config);
         Ok(Self::new(id, secret, redirect, provider, jwks))
     }
 
@@ -157,7 +157,7 @@ impl Client {
 
     /// A reference to the config document of the provider obtained via discovery
     pub fn config(&self) -> &Config {
-        &self.oauth.provider.config
+        &self.oauth.provider.0
     }
 
     /// Constructs the auth_url to redirect a client to the provider. Options are... optional. Use 
