@@ -503,29 +503,28 @@ pub struct Address {
     #[serde(default)] pub country: Option<String>,
 }
 
-#[test]
-fn google() {
-    let id = "test".to_string();
-    let secret = "a secret to everybody".to_string();
-    let redirect = Url::parse("https://example.com/re").unwrap();
-    let client = Client::discover(id, secret, redirect, issuer::google()).unwrap();
-    client.auth_url(&Default::default());
-}
+#[cfg(test)]
+mod tests {
+    use reqwest::Url;
+    use crate::Client;
+    use crate::issuer;
 
-#[test]
-fn paypal() {
-    let id = "test".to_string();
-    let secret = "a secret to everybody".to_string();
-    let redirect = Url::parse("https://example.com/re").unwrap();
-    let client = Client::discover(id, secret, redirect, issuer::paypal()).unwrap();
-    client.auth_url(&Default::default());
-}
+    macro_rules! test {
+        ($issuer:ident) => {
+            #[test]
+            fn $issuer() {
+                let id = "test".to_string();
+                let secret = "a secret to everybody".to_string();
+                let redirect = Url::parse("https://example.com/re").unwrap();
+                let client = Client::discover(id, secret, redirect, issuer::$issuer()).unwrap();
+                client.auth_url(&Default::default());
+            }
+        }
+    }
 
-#[test]
-fn salesforce() {
-    let id = "test".to_string();
-    let secret = "a secret to everybody".to_string();
-    let redirect = Url::parse("https://example.com/re").unwrap();
-    let client = Client::discover(id, secret, redirect, issuer::salesforce()).unwrap();
-    client.auth_url(&Default::default());
+    test!(google);
+    test!(microsoft);
+    test!(paypal);
+    test!(salesforce);
+    test!(yahoo);
 }

@@ -1,11 +1,10 @@
 pub use biscuit::errors::Error as Jose;
-pub use serde_json::Error as Json;
 pub use inth_oauth2::ClientError as Oauth;
 pub use reqwest::Error as Http;
 pub use reqwest::UrlError as Url;
+pub use serde_json::Error as Json;
 
-use std::fmt::{Display, Formatter, Result};
-use std::error::Error as ErrorTrait;
+use failure::Fail;
 
 macro_rules! from {
     ($to:ident, $from:ident) => {
@@ -17,17 +16,27 @@ macro_rules! from {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Fail)]
 pub enum Error {
-    Jose(Jose),
-    Json(Json),
-    Oauth(Oauth),
-    Http(Http),
-    Url(Url),
-    Decode(Decode),
-    Validation(Validation),
-    Userinfo(Userinfo),
+    #[fail(display = "{}", _0)]
+    Jose(#[fail(cause)] Jose),
+    #[fail(display = "{}", _0)]
+    Oauth(#[fail(cause)] Oauth),
+    #[fail(display = "{}", _0)]
+    Http(#[fail(cause)] Http),
+    #[fail(display = "{}", _0)]
+    Url(#[fail(cause)] Url),
+    #[fail(display = "{}", _0)]
+    Json(#[fail(cause)] Json),
+    #[fail(display = "{}", _0)]
+    Decode(#[fail(cause)] Decode),
+    #[fail(display = "{}", _0)]
+    Validation(#[fail(cause)] Validation),
+    #[fail(display = "{}", _0)]
+    Userinfo(#[fail(cause)] Userinfo),
+    #[fail(display = "Url must use TLS: '{}'", _0)]
     Insecure(::reqwest::Url),
+    #[fail(display = "Scope must contain Openid")]
     MissingOpenidScope,
 }
 
@@ -40,228 +49,60 @@ from!(Error, Decode);
 from!(Error, Validation);
 from!(Error, Userinfo);
 
-impl Display for Error {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        use self::Error::*;
-        match *self {
-            Jose(ref err)       => Display::fmt(err, f),
-            Json(ref err)       => Display::fmt(err, f),
-            Oauth(ref err)      => Display::fmt(err, f),
-            Http(ref err)       => Display::fmt(err, f),
-            Url(ref err)        => Display::fmt(err, f),
-            Decode(ref err)     => Display::fmt(err, f),
-            Validation(ref err) => Display::fmt(err, f),
-            Userinfo(ref err)   => Display::fmt(err, f),
-            Insecure(ref url)   => write!(f, "Url must use HTTPS: '{}'", url),
-            MissingOpenidScope  => write!(f, "")
-        }
-    }
-}
-
-impl ErrorTrait for Error {
-    fn description(&self) -> &str {
-        use self::Error::*;
-        match *self {
-            Jose(ref err)       => err.description(),
-            Json(ref err)       => err.description(),
-            Oauth(ref err)      => err.description(),
-            Http(ref err)       => err.description(),
-            Url(ref err)        => err.description(),
-            Decode(ref err)     => err.description(),
-            Validation(ref err) => err.description(),
-            Userinfo(ref err)   => err.description(),
-            Insecure(_)         => "URL must use TLS",
-            MissingOpenidScope  => "Scope must contain Openid",
-        }
-    }
-
-    fn cause(&self) -> Option<&ErrorTrait> {
-        use self::Error::*;
-        match *self {
-            Jose(ref err)       => Some(err),
-            Json(ref err)       => Some(err),
-            Oauth(ref err)      => Some(err),
-            Http(ref err)       => Some(err),
-            Url(ref err)        => Some(err),
-            Decode(_)           => None,
-            Validation(_)       => None,
-            Userinfo(_)         => None,
-            Insecure(_)         => None,
-            MissingOpenidScope  => None,
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Fail)]
 pub enum Decode {
+    #[fail(display = "Token Missing a Key Id when the key set has multiple keys")]
     MissingKid,
+    #[fail(display = "Token wants this key id not in the key set: {}", _0)]
     MissingKey(String),
+    #[fail(display = "JWK Set is empty")]
     EmptySet,
 }
 
-impl ErrorTrait for Decode {
-    fn description(&self) -> &str {
-        use self::Decode::*;
-        match *self {
-            MissingKid => "Missing Key Id",
-            MissingKey(_) => "Token key not in key set",
-            EmptySet => "JWK Set is empty",
-        }
-    }
-    fn cause(&self) -> Option<&ErrorTrait> {
-        None
-    }
-}
-
-impl Display for Decode {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        use self::Decode::*;
-        match *self {
-            MissingKid => write!(f, "Token Missing a Key Id when the key set has multiple keys"),
-            MissingKey(ref id) => 
-                write!(f, "Token wants this key id not in the key set: {}", id),
-            EmptySet => write!(f, "JWK Set is empty!")
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Fail)]
 pub enum Validation {
-    Mismatch(Mismatch),
-    Missing(Missing),
-    Expired(Expiry),
+    #[fail(display = "{}", _0)]
+    Mismatch(#[fail(cause)] Mismatch),
+    #[fail(display = "{}", _0)]
+    Missing(#[fail(cause)] Missing),
+    #[fail(display = "{}", _0)]
+    Expired(#[fail(cause)] Expiry),
 }
 
-impl ErrorTrait for Validation {
-    fn description(&self) -> &str {
-        use self::Validation::*;
-        match *self {
-            Mismatch(ref mm) => {
-                use self::Mismatch::*;
-                match *mm {
-                    AuthorizedParty {..}    => "Client id and token authorized party mismatch",
-                    Issuer {..}             => "Config issuer and token issuer mismatch",
-                    Nonce {..}              => "Supplied nonce and token nonce mismatch",
-                }
-            }
-            Missing(ref mi)  => {
-                use self::Missing::*;
-                match *mi {
-                    Audience        => "Token missing Audience",
-                    AuthorizedParty => "Token missing AZP",
-                    AuthTime        => "Token missing Auth Time",
-                    Nonce           => "Token missing Nonce"
-                }
-            }
-            Expired(ref ex)  => {
-                match *ex {
-                    Expiry::Expires(_)  => "Token expired",
-                    Expiry::MaxAge(_)   => "Token too old"
-                }
-            }
-        }
-    }
-
-    fn cause(&self) -> Option<&ErrorTrait> {
-        None
-    }
-}
-
-impl Display for Validation {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        use self::Validation::*;
-        match *self {
-            Mismatch(ref err)   => err.fmt(f),
-            Missing(ref err)    => err.fmt(f),
-            Expired(ref err)    => err.fmt(f),
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Fail)]
 pub enum Mismatch {
+    #[fail(display = "Client ID and Token authorized party mismatch: '{}', '{}'", expected, actual)]
     AuthorizedParty { expected: String, actual: String },
+    #[fail(display = "Configured issuer and token issuer mismatch: '{}' '{}'", expected, actual)]
     Issuer { expected: String, actual: String },
+    #[fail(display = "Given nonce does not match token nonce: '{}', '{}'", expected, actual)]
     Nonce { expected: String, actual: String },
 }
 
-impl Display for Mismatch {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        use self::Mismatch::*;
-        match *self {
-            AuthorizedParty  { ref expected, ref actual } => 
-        write!(f, "Client ID and Token authorized party mismatch: '{}', '{}'", expected, actual),
-            Issuer      { ref expected, ref actual } => 
-            write!(f, "Configured issuer and token issuer mismatch: '{}' '{}'", expected, actual),
-            Nonce       { ref expected, ref actual } => 
-            write!(f, "Given nonce does not match token nonce: '{}', '{}'", expected, actual)
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Fail)]
 pub enum Missing {
+    #[fail(display = "Token missing Audience")]
     Audience,
+    #[fail(display = "Token missing AZP")]
     AuthorizedParty,
+    #[fail(display = "Token missing Auth Time")]
     AuthTime,
+    #[fail(display = "Token missing Nonce")]
     Nonce,
 }
 
-impl Display for Missing {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        use self::Missing::*;
-        match *self {
-            Audience        => write!(f, "Token missing Audience"),
-            AuthorizedParty => write!(f, "Token missing AZP"),
-            AuthTime        => write!(f, "Token missing Auth Time"),
-            Nonce           => write!(f, "Token missing Nonce")
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Fail)]
 pub enum Expiry {
+    #[fail(display = "Token expired at: {}", _0)]
     Expires(::chrono::naive::NaiveDateTime),
+    #[fail(display = "Token is too old: {}", _0)]
     MaxAge(::chrono::Duration)
 }
 
-impl Display for Expiry {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        use self::Expiry::*;
-        match *self {
-            Expires(time)   => write!(f, "Token expired at: {}", time),
-            MaxAge(age)     => write!(f, "Token is too old: {}", age)
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Fail)]
 pub enum Userinfo {
+    #[fail(display = "Config has no userinfo url")]
     NoUrl,
+    #[fail(display = "Token and Userinfo Subjects mismatch: '{}', '{}'", expected, actual)]
     MismatchSubject { expected: String, actual: String },
-}
-
-impl ErrorTrait for Userinfo {
-    fn description(&self) -> &str {
-        use self::Userinfo::*;
-        match *self {
-            NoUrl                  => "No url",
-            MismatchSubject { .. } => "Mismatch subject"
-        }
-    }
-
-    fn cause(&self) -> Option<&ErrorTrait> {
-        None
-    }
-}
-
-impl Display for Userinfo {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        use self::Userinfo::*;
-        match *self {
-            NoUrl => write!(f, "Config has no userinfo url"),
-            MismatchSubject { ref expected, ref actual } => 
-                write!(f, "Token and Userinfo Subjects mismatch: '{}', '{}'", expected, actual),
-        }
-    }
 }
