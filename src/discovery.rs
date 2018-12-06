@@ -3,10 +3,11 @@ use biscuit::jwk::JWKSet;
 use inth_oauth2::provider::Provider;
 use inth_oauth2::token::Expiring;
 use reqwest::{Client, Url};
+use serde_derive::{Deserialize, Serialize};
 use url_serde;
 
-use error::Error;
-use token::Token;
+use crate::error::Error;
+use crate::token::Token;
 
 pub(crate) fn secure(url: &Url) -> Result<(), Error> {
     if url.scheme() != "https" {
@@ -17,7 +18,7 @@ pub(crate) fn secure(url: &Url) -> Result<(), Error> {
 }
 
 // TODO I wish we could impl default for this, but you cannot have a config without issuer etc
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
     #[serde(with = "url_serde")] pub issuer: Url,
     #[serde(with = "url_serde")] pub authorization_endpoint: Url,

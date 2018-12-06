@@ -62,28 +62,12 @@
 //! - This version demonstrates userinfo. It is not required by spec, so make sure its available!
 //!   (you get an Error::Userinfo::Nourl if it is not)
 
-extern crate base64;
-extern crate biscuit;
-extern crate chrono;
-extern crate inth_oauth2;
-extern crate reqwest;
-// We never use serde, but serde_derive needs it here
-#[allow(unused_extern_crates)]
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-extern crate url_serde;
-extern crate validator;
-#[macro_use]
-extern crate validator_derive;
-
 pub mod discovery;
 pub mod error;
 pub mod issuer;
 pub mod token;
 
-pub use error::Error;
+pub use crate::error::Error;
 
 use biscuit::{Empty, SingleOrMultiple};
 use biscuit::jwa::{self, SignatureAlgorithm};
@@ -92,11 +76,13 @@ use biscuit::jws::{Compact, Secret};
 use chrono::{Duration, NaiveDate, Utc};
 use inth_oauth2::token::Token as _t;
 use reqwest::Url;
+use serde_derive::{Deserialize, Serialize};
 use validator::Validate;
+use validator_derive::Validate;
 
-use discovery::{Config, Discovered};
-use error::{Decode, Expiry, Mismatch, Missing, Validation};
-use token::{Claims, Token};
+use crate::discovery::{Config, Discovered};
+use crate::error::{Decode, Expiry, Mismatch, Missing, Validation};
+use crate::token::{Claims, Token};
 
 type IdToken = Compact<Claims, Empty>;
 
@@ -435,7 +421,7 @@ pub struct Options {
 
 /// The userinfo struct contains all possible userinfo fields regardless of scope. [See spec.](https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims)
 // TODO is there a way to use claims_supported in config to simplify this struct?
-#[derive(Debug, Serialize, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Serialize, Validate)]
 pub struct Userinfo {
     pub sub: String,
     #[serde(default)] pub name: Option<String>,
@@ -474,7 +460,7 @@ pub enum Display {
 
 impl Display {
     fn as_str(&self) -> &'static str {
-        use Display::*;
+        use self::Display::*;
         match *self {
             Page => "page",
             Popup => "popup",
@@ -495,7 +481,7 @@ pub enum Prompt {
 
 impl Prompt {
     fn as_str(&self) -> &'static str {
-        use Prompt::*;
+        use self::Prompt::*;
         match *self {
             None => "none",
             Login => "login",
@@ -506,7 +492,7 @@ impl Prompt {
 }
 
 /// Address Claim struct. Can be only formatted, only the rest, or both.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Address {
     #[serde(default)] pub formatted: Option<String>,
     #[serde(default)] pub street_address: Option<String>,

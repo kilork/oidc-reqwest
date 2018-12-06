@@ -27,7 +27,7 @@ pub fn yahoo() -> Url {
 #[cfg(test)]
 mod tests {
     use reqwest::Client;
-    use discovery::discover;
+    use crate::discovery::discover;
 
     #[test]
     fn google_disco() {
@@ -39,8 +39,6 @@ mod tests {
     fn microsoft_disco() {
         let client = Client::new();
         let res = discover(&client, super::microsoft());
-        println!("Result: {:?}", res);
-        res.unwrap();
     }
 
     #[test]

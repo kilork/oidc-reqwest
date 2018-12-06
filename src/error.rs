@@ -42,7 +42,7 @@ from!(Error, Userinfo);
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        use Error::*;
+        use self::Error::*;
         match *self {
             Jose(ref err)       => Display::fmt(err, f),
             Json(ref err)       => Display::fmt(err, f),
@@ -60,7 +60,7 @@ impl Display for Error {
 
 impl ErrorTrait for Error {
     fn description(&self) -> &str {
-        use Error::*;
+        use self::Error::*;
         match *self {
             Jose(ref err)       => err.description(),
             Json(ref err)       => err.description(),
@@ -76,7 +76,7 @@ impl ErrorTrait for Error {
     }
 
     fn cause(&self) -> Option<&ErrorTrait> {
-        use Error::*;
+        use self::Error::*;
         match *self {
             Jose(ref err)       => Some(err),
             Json(ref err)       => Some(err),
@@ -101,7 +101,7 @@ pub enum Decode {
 
 impl ErrorTrait for Decode {
     fn description(&self) -> &str {
-        use Decode::*;
+        use self::Decode::*;
         match *self {
             MissingKid => "Missing Key Id",
             MissingKey(_) => "Token key not in key set",
@@ -115,7 +115,7 @@ impl ErrorTrait for Decode {
 
 impl Display for Decode {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        use Decode::*;
+        use self::Decode::*;
         match *self {
             MissingKid => write!(f, "Token Missing a Key Id when the key set has multiple keys"),
             MissingKey(ref id) => 
@@ -134,10 +134,10 @@ pub enum Validation {
 
 impl ErrorTrait for Validation {
     fn description(&self) -> &str {
-        use error::Validation::*;
+        use self::Validation::*;
         match *self {
             Mismatch(ref mm) => {
-                use error::Mismatch::*;
+                use self::Mismatch::*;
                 match *mm {
                     AuthorizedParty {..}    => "Client id and token authorized party mismatch",
                     Issuer {..}             => "Config issuer and token issuer mismatch",
@@ -145,7 +145,7 @@ impl ErrorTrait for Validation {
                 }
             }
             Missing(ref mi)  => {
-                use Missing::*;
+                use self::Missing::*;
                 match *mi {
                     Audience        => "Token missing Audience",
                     AuthorizedParty => "Token missing AZP",
@@ -169,7 +169,7 @@ impl ErrorTrait for Validation {
 
 impl Display for Validation {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        use error::Validation::*;
+        use self::Validation::*;
         match *self {
             Mismatch(ref err)   => err.fmt(f),
             Missing(ref err)    => err.fmt(f),
@@ -187,7 +187,7 @@ pub enum Mismatch {
 
 impl Display for Mismatch {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        use error::Mismatch::*;
+        use self::Mismatch::*;
         match *self {
             AuthorizedParty  { ref expected, ref actual } => 
         write!(f, "Client ID and Token authorized party mismatch: '{}', '{}'", expected, actual),
@@ -209,7 +209,7 @@ pub enum Missing {
 
 impl Display for Missing {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        use Missing::*;
+        use self::Missing::*;
         match *self {
             Audience        => write!(f, "Token missing Audience"),
             AuthorizedParty => write!(f, "Token missing AZP"),
@@ -227,7 +227,7 @@ pub enum Expiry {
 
 impl Display for Expiry {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        use Expiry::*;
+        use self::Expiry::*;
         match *self {
             Expires(time)   => write!(f, "Token expired at: {}", time),
             MaxAge(age)     => write!(f, "Token is too old: {}", age)
@@ -243,7 +243,7 @@ pub enum Userinfo {
 
 impl ErrorTrait for Userinfo {
     fn description(&self) -> &str {
-        use error::Userinfo::*;
+        use self::Userinfo::*;
         match *self {
             NoUrl                  => "No url",
             MismatchSubject { .. } => "Mismatch subject"
@@ -257,7 +257,7 @@ impl ErrorTrait for Userinfo {
 
 impl Display for Userinfo {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        use error::Userinfo::*;
+        use self::Userinfo::*;
         match *self {
             NoUrl => write!(f, "Config has no userinfo url"),
             MismatchSubject { ref expected, ref actual } => 
