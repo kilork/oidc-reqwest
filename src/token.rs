@@ -11,10 +11,11 @@ pub use biscuit::jws::Compact as Jws;
 
 type IdToken = Jws<Claims, Empty>;
 
-/// ID Token contents. [See spec.](https://openid.net/specs/openid-connect-basic-1_0.html#IDToken) 
+/// ID Token contents. [See spec.](https://openid.net/specs/openid-connect-basic-1_0.html#IDToken)
 #[derive(Deserialize, Serialize)]
 pub struct Claims {
-    #[serde(with = "url_serde")] pub iss: Url,
+    #[serde(with = "url_serde")]
+    pub iss: Url,
     // Max 255 ASCII chars
     // Can't deserialize a [u8; 255]
     pub sub: String,
@@ -29,14 +30,20 @@ pub struct Claims {
     pub exp: i64,
     pub iat: i64,
     // required for max_age request
-    #[serde(default)] pub auth_time: Option<i64>,
-    #[serde(default)] pub nonce: Option<String>,
+    #[serde(default)]
+    pub auth_time: Option<i64>,
+    #[serde(default)]
+    pub nonce: Option<String>,
     // base64 encoded, need to decode it!
-    #[serde(default)] at_hash: Option<String>,
-    #[serde(default)] pub acr: Option<String>,
-    #[serde(default)] pub amr: Option<Vec<String>>,
+    #[serde(default)]
+    at_hash: Option<String>,
+    #[serde(default)]
+    pub acr: Option<String>,
+    #[serde(default)]
+    pub amr: Option<Vec<String>>,
     // If exists, must be client_id
-    #[serde(default)] pub azp: Option<String>,
+    #[serde(default)]
+    pub azp: Option<String>,
 }
 
 impl Claims {
@@ -70,9 +77,10 @@ impl Token {
     // TODO Support extracting a jwe token according to spec. Right now we only support jws tokens.
     fn id_token(json: &Value) -> Result<IdToken, ParseError> {
         let obj = json.as_object().ok_or(ParseError::ExpectedType("object"))?;
-        let token = obj.get("id_token").and_then(Value::as_str).ok_or(
-            ParseError::ExpectedFieldType("id_token", "string"),
-        )?;
+        let token = obj
+            .get("id_token")
+            .and_then(Value::as_str)
+            .ok_or(ParseError::ExpectedFieldType("id_token", "string"))?;
         Ok(Jws::new_encoded(token))
     }
 }

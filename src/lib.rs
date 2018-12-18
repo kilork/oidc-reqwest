@@ -7,20 +7,20 @@
 //! use oidc;
 //! use reqwest;
 //! use std::default::Default;
-//! 
+//!
 //! let id = "my client".to_string();
 //! let secret = "a secret to everybody".to_string();
 //! let redirect = reqwest::Url::parse("https://my-redirect.foo/dest")?;
 //! let issuer = oidc::issuer::google();
 //! let client = oidc::discover(id, secret, redirect, issuer)?;
 //! let auth_url = client.auth_url(Default::default());
-//! 
+//!
 //! // ... send your user to auth_url, get an auth_code back at your redirect url handler
-//! 
+//!
 //! let token = client.authenticate(auth_code, None, None)?;
 //! ```
 //!
-//! That example leaves you with a decoded `Token` that has been validated. Your user is 
+//! That example leaves you with a decoded `Token` that has been validated. Your user is
 //! authenticated!
 //!
 //! You can also take a more nuanced approach that gives you more fine grained control:
@@ -29,22 +29,22 @@
 //! use oidc;
 //! use reqwest;
 //! use std::default::Default;
-//! 
+//!
 //! let id = "my client".to_string();
 //! let secret = "a secret to everybody".to_string();
 //! let redirect = reqwest::Url::parse("https://my-redirect.foo/dest")?;
 //! let issuer = oidc::issuer::google();
 //! let http = reqwest::Client::new();
-//! 
+//!
 //! let config = oidc::discovery::discover(&http, issuer)?;
 //! let jwks = oidc::discovery::jwks(&http, config.jwks_uri.clone())?;
 //! let provider = oidc::discovery::Discovered(config);
-//! 
+//!
 //! let client = oidc::new(id, secret, redirect, provider, jwks);
 //! let auth_url = client.auth_url(Default::default());
 //!
 //! // ... send your user to auth_url, get an auth_code back at your redirect url handler
-//! 
+//!
 //! let mut token = client.request_token(&http, auth_code)?;
 //! client.decode_token(&mut token)?;
 //! client.validate_token(&token, None, None)?;
@@ -68,10 +68,10 @@ pub mod token;
 
 pub use crate::error::Error;
 
-use biscuit::{Empty, SingleOrMultiple};
 use biscuit::jwa::{self, SignatureAlgorithm};
 use biscuit::jwk::{AlgorithmParameters, JWKSet};
 use biscuit::jws::{Compact, Secret};
+use biscuit::{Empty, SingleOrMultiple};
 use chrono::{Duration, NaiveDate, Utc};
 use inth_oauth2::token::Token as _t;
 use reqwest::Url;
@@ -93,13 +93,13 @@ pub struct Client {
 
 // Common pattern in the Client::decode function when dealing with mismatched keys
 macro_rules! wrong_key {
-    ($expected:expr, $actual:expr) => (
+    ($expected:expr, $actual:expr) => {
         Err(error::Jose::WrongKeyType {
-                expected: format!("{:?}", $expected),
-                actual: format!("{:?}", $actual)
-            }.into()
-        )
-    )
+            expected: format!("{:?}", $expected),
+            actual: format!("{:?}", $actual),
+        }
+        .into())
+    };
 }
 
 impl Client {
@@ -113,31 +113,34 @@ impl Client {
         Ok(Self::new(id, secret, redirect, provider, jwks))
     }
 
-    /// Constructs a client from a given provider, key set, and parameters. Unlike ::discover(..) 
+    /// Constructs a client from a given provider, key set, and parameters. Unlike ::discover(..)
     /// this function does not perform any network operations.
-    pub fn new(id: String, secret: 
-        String, redirect: Url, provider: Discovered, jwks: JWKSet<Empty>) -> Self {
+    pub fn new(
+        id: String,
+        secret: String,
+        redirect: Url,
+        provider: Discovered,
+        jwks: JWKSet<Empty>,
+    ) -> Self {
         Client {
-            oauth: inth_oauth2::Client::new(
-                provider, 
-                id, 
-                secret,
-                Some(redirect.into_string())),
-            jwks
+            oauth: inth_oauth2::Client::new(provider, id, secret, Some(redirect.into_string())),
+            jwks,
         }
     }
 
     /// Passthrough to the redirect_url stored in inth_oauth2 as a str.
     pub fn redirect_url(&self) -> &str {
-        self.oauth.redirect_uri.as_ref().expect("We always require a redirect to construct client!")
+        self.oauth
+            .redirect_uri
+            .as_ref()
+            .expect("We always require a redirect to construct client!")
     }
 
     /// Passthrough to the inth_oauth2::client's request token.
-    pub fn request_token(&self,
-                         client: &reqwest::Client,
-                         auth_code: &str,
-    ) -> Result<Token, Error> {
-        self.oauth.request_token(client, auth_code).map_err(Error::from)
+    pub fn request_token(&self, client: &reqwest::Client, auth_code: &str) -> Result<Token, Error> {
+        self.oauth
+            .request_token(client, auth_code)
+            .map_err(Error::from)
     }
 
     /// A reference to the config document of the provider obtained via discovery
@@ -145,8 +148,8 @@ impl Client {
         &self.oauth.provider.0
     }
 
-    /// Constructs the auth_url to redirect a client to the provider. Options are... optional. Use 
-    /// them as needed. Keep the Options struct around for authentication, or at least the nonce 
+    /// Constructs the auth_url to redirect a client to the provider. Options are... optional. Use
+    /// them as needed. Keep the Options struct around for authentication, or at least the nonce
     /// and max_age parameter - we need to verify they stay the same and validate if you used them.
     pub fn auth_url(&self, options: &Options) -> Url {
         let scope = match options.scope {
@@ -158,10 +161,12 @@ impl Client {
                 }
             }
             // Default scope value
-            None => String::from("openid")
+            None => String::from("openid"),
         };
 
-        let mut url = self.oauth.auth_uri(Some(&scope), options.state.as_ref().map(String::as_str));
+        let mut url = self
+            .oauth
+            .auth_uri(Some(&scope), options.state.as_ref().map(String::as_str));
         {
             let mut query = url.query_pairs_mut();
             if let Some(ref nonce) = options.nonce {
@@ -171,7 +176,11 @@ impl Client {
                 query.append_pair("display", display.as_str());
             }
             if let Some(ref prompt) = options.prompt {
-                let s = prompt.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(" ");
+                let s = prompt
+                    .iter()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>()
+                    .join(" ");
                 query.append_pair("prompt", s.as_str());
             }
             if let Some(max_age) = options.max_age {
@@ -197,7 +206,11 @@ impl Client {
     }
 
     /// Given an auth_code and auth options, request the token, decode, and validate it.
-    pub fn authenticate(&self, auth_code: &str, nonce: Option<&str>, max_age: Option<&Duration>
+    pub fn authenticate(
+        &self,
+        auth_code: &str,
+        nonce: Option<&str>,
+        max_age: Option<&Duration>,
     ) -> Result<Token, Error> {
         let client = reqwest::Client::new();
         let mut token = self.request_token(&client, auth_code)?;
@@ -217,14 +230,16 @@ impl Client {
     pub fn decode_token(&self, token: &mut IdToken) -> Result<(), Error> {
         // This is an early return if the token is already decoded
         if let Compact::Decoded { .. } = *token {
-            return Ok(())
+            return Ok(());
         }
 
         let header = token.unverified_header()?;
         // If there is more than one key, the token MUST have a key id
         let key = if self.jwks.keys.len() > 1 {
             let token_kid = header.registered.key_id.ok_or(Decode::MissingKid)?;
-            self.jwks.find(&token_kid).ok_or(Decode::MissingKey(token_kid))?
+            self.jwks
+                .find(&token_kid)
+                .ok_or(Decode::MissingKey(token_kid))?
         } else {
             // TODO We would want to verify the keyset is >1 in the constructor
             // rather than every decode call, but we can't return an error in new().
@@ -237,39 +252,35 @@ impl Client {
                     return wrong_key!(sig, header.registered.algorithm);
                 }
             } else {
-                return  wrong_key!(SignatureAlgorithm::default(), alg);
+                return wrong_key!(SignatureAlgorithm::default(), alg);
             }
         }
 
         let alg = header.registered.algorithm;
         match key.algorithm {
             // HMAC
-            AlgorithmParameters::OctectKey { ref value, .. } => {
-                match alg {
-                    SignatureAlgorithm::HS256 |
-                    SignatureAlgorithm::HS384 |
-                    SignatureAlgorithm::HS512 => {
-                        *token = token.decode(&Secret::Bytes(value.clone()), alg)?;
-                        Ok(())
-                    }
-                    _ =>  wrong_key!("HS256 | HS384 | HS512", alg)
+            AlgorithmParameters::OctectKey { ref value, .. } => match alg {
+                SignatureAlgorithm::HS256
+                | SignatureAlgorithm::HS384
+                | SignatureAlgorithm::HS512 => {
+                    *token = token.decode(&Secret::Bytes(value.clone()), alg)?;
+                    Ok(())
                 }
-            }
-            AlgorithmParameters::RSA(ref params) => {
-                match alg {
-                    SignatureAlgorithm::RS256 |
-                    SignatureAlgorithm::RS384 |
-                    SignatureAlgorithm::RS512 => {
-                        let pkcs = Secret::RSAModulusExponent {
-                            n: params.n.clone(),
-                            e: params.e.clone(),
-                        };
-                        *token = token.decode(&pkcs, alg)?;
-                        Ok(())
-                    }
-                    _ =>  wrong_key!("RS256 | RS384 | RS512", alg)
+                _ => wrong_key!("HS256 | HS384 | HS512", alg),
+            },
+            AlgorithmParameters::RSA(ref params) => match alg {
+                SignatureAlgorithm::RS256
+                | SignatureAlgorithm::RS384
+                | SignatureAlgorithm::RS512 => {
+                    let pkcs = Secret::RSAModulusExponent {
+                        n: params.n.clone(),
+                        e: params.e.clone(),
+                    };
+                    *token = token.decode(&pkcs, alg)?;
+                    Ok(())
                 }
-            }
+                _ => wrong_key!("RS256 | RS384 | RS512", alg),
+            },
             AlgorithmParameters::EllipticCurve(_) => unimplemented!("No support for EC keys yet"),
         }
     }
@@ -288,14 +299,14 @@ impl Client {
     /// - Validation::Expired::MaxAge is the token is older than the provided max_age
     /// - Validation::Missing::Authtime if a max_age was given and the token has no auth time
     pub fn validate_token(
-        &self, 
-        token: &IdToken, 
-        nonce: Option<&str>, 
-        max_age: Option<&Duration>
+        &self,
+        token: &IdToken,
+        nonce: Option<&str>,
+        max_age: Option<&Duration>,
     ) -> Result<(), Error> {
         let claims = token.payload()?;
 
-        if claims.iss != self.config().issuer  {
+        if claims.iss != self.config().issuer {
             let expected = self.config().issuer.as_str().to_string();
             let actual = claims.iss.as_str().to_string();
             return Err(Validation::Mismatch(Mismatch::Issuer { expected, actual }).into());
@@ -307,14 +318,17 @@ impl Client {
                     if expected != actual {
                         let expected = expected.to_string();
                         let actual = actual.to_string();
-                        return Err(Validation::Mismatch(
-                            Mismatch::Nonce { expected, actual }).into());
+                        return Err(
+                            Validation::Mismatch(Mismatch::Nonce { expected, actual }).into()
+                        );
                     }
                 }
                 None => return Err(Validation::Missing(Missing::Nonce).into()),
-            }
-            None => if claims.nonce.is_some() { 
-                return Err(Validation::Missing(Missing::Nonce).into()) 
+            },
+            None => {
+                if claims.nonce.is_some() {
+                    return Err(Validation::Missing(Missing::Nonce).into());
+                }
             }
         }
 
@@ -332,9 +346,9 @@ impl Client {
             if actual != &self.oauth.client_id {
                 let expected = self.oauth.client_id.to_string();
                 let actual = actual.to_string();
-                return Err(Validation::Mismatch(Mismatch::AuthorizedParty { 
-                    expected, actual 
-                }).into());
+                return Err(
+                    Validation::Mismatch(Mismatch::AuthorizedParty { expected, actual }).into(),
+                );
             }
         }
 
@@ -344,9 +358,10 @@ impl Client {
             panic!("chrono::Utc::now() can never be before this was written!")
         }
         if claims.exp <= now.timestamp() {
-            return Err(Validation::Expired(
-                Expiry::Expires(
-                    chrono::naive::NaiveDateTime::from_timestamp(claims.exp, 0))).into());
+            return Err(Validation::Expired(Expiry::Expires(
+                chrono::naive::NaiveDateTime::from_timestamp(claims.exp, 0),
+            ))
+            .into());
         }
 
         if let Some(max) = max_age {
@@ -373,27 +388,33 @@ impl Client {
     /// - Error::Http if something goes wrong getting the document
     /// - Error::Json if the response is not a valid Userinfo document
     /// - Userinfo::MismatchSubject if the returned userinfo document and tokens subject mismatch
-    pub fn request_userinfo(&self, client: &reqwest::Client, token: &Token
+    pub fn request_userinfo(
+        &self,
+        client: &reqwest::Client,
+        token: &Token,
     ) -> Result<Userinfo, Error> {
         match self.config().userinfo_endpoint {
             Some(ref url) => {
                 discovery::secure(&url)?;
                 let claims = token.id_token.payload()?;
                 let auth_code = token.access_token().to_string();
-                let mut resp = client.get(url.clone())
+                let mut resp = client
+                    .get(url.clone())
                     // FIXME This is a transitional hack for Reqwest 0.9 that should be refactored
                     // when upstream restores typed header support.
-                    .header_011(reqwest::hyper_011::header::Authorization(reqwest::hyper_011::header::Bearer { token: auth_code }))
+                    .header_011(reqwest::hyper_011::header::Authorization(
+                        reqwest::hyper_011::header::Bearer { token: auth_code },
+                    ))
                     .send()?;
                 let info: Userinfo = resp.json()?;
                 if claims.sub != info.sub {
                     let expected = info.sub.clone();
                     let actual = claims.sub.clone();
-                    return Err(error::Userinfo::MismatchSubject { expected, actual }.into())
+                    return Err(error::Userinfo::MismatchSubject { expected, actual }.into());
                 }
                 Ok(info)
             }
-            None => Err(error::Userinfo::NoUrl.into())
+            None => Err(error::Userinfo::NoUrl.into()),
         }
     }
 }
@@ -403,7 +424,7 @@ impl Client {
 #[derive(Default)]
 pub struct Options {
     /// MUST contain openid. By default this is ONLY openid. Official optional scopes are
-    /// email, profile, address, phone, offline_access. Check the Discovery config 
+    /// email, profile, address, phone, offline_access. Check the Discovery config
     /// `scopes_supported` to see what is available at your provider!
     pub scope: Option<String>,
     pub state: Option<String>,
@@ -423,30 +444,53 @@ pub struct Options {
 #[derive(Debug, Deserialize, Serialize, Validate)]
 pub struct Userinfo {
     pub sub: String,
-    #[serde(default)] pub name: Option<String>,
-    #[serde(default)] pub given_name: Option<String>,
-    #[serde(default)] pub family_name: Option<String>,
-    #[serde(default)] pub middle_name: Option<String>,
-    #[serde(default)] pub nickname: Option<String>,
-    #[serde(default)] pub preferred_username: Option<String>,
-    #[serde(default)] #[serde(with = "url_serde")] pub profile: Option<Url>,
-    #[serde(default)] #[serde(with = "url_serde")] pub picture: Option<Url>,
-    #[serde(default)] #[serde(with = "url_serde")] pub website: Option<Url>,
-    #[serde(default)] #[validate(email)] pub email: Option<String>,
-    #[serde(default)] pub email_verified: bool,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub given_name: Option<String>,
+    #[serde(default)]
+    pub family_name: Option<String>,
+    #[serde(default)]
+    pub middle_name: Option<String>,
+    #[serde(default)]
+    pub nickname: Option<String>,
+    #[serde(default)]
+    pub preferred_username: Option<String>,
+    #[serde(default)]
+    #[serde(with = "url_serde")]
+    pub profile: Option<Url>,
+    #[serde(default)]
+    #[serde(with = "url_serde")]
+    pub picture: Option<Url>,
+    #[serde(default)]
+    #[serde(with = "url_serde")]
+    pub website: Option<Url>,
+    #[serde(default)]
+    #[validate(email)]
+    pub email: Option<String>,
+    #[serde(default)]
+    pub email_verified: bool,
     // Isn't required to be just male or female
-    #[serde(default)] pub gender: Option<String>,
+    #[serde(default)]
+    pub gender: Option<String>,
     // ISO 9601:2004 YYYY-MM-DD or YYYY.
-    #[serde(default)] pub birthdate: Option<NaiveDate>,
+    #[serde(default)]
+    pub birthdate: Option<NaiveDate>,
     // Region/City codes. Should also have a more concrete serializer form.
-    #[serde(default)] pub zoneinfo: Option<String>,
+    #[serde(default)]
+    pub zoneinfo: Option<String>,
     // Usually RFC5646 langcode-countrycode, maybe with a _ sep, could be arbitrary
-    #[serde(default)] pub locale: Option<String>,
+    #[serde(default)]
+    pub locale: Option<String>,
     // Usually E.164 format number
-    #[serde(default)] pub phone_number: Option<String>,
-    #[serde(default)] pub phone_number_verified: bool,
-    #[serde(default)] pub address: Option<Address>,
-    #[serde(default)] pub updated_at: Option<i64>,
+    #[serde(default)]
+    pub phone_number: Option<String>,
+    #[serde(default)]
+    pub phone_number_verified: bool,
+    #[serde(default)]
+    pub address: Option<Address>,
+    #[serde(default)]
+    pub updated_at: Option<i64>,
 }
 
 /// The four values for the preferred display parameter in the Options. See spec for details.
@@ -493,20 +537,26 @@ impl Prompt {
 /// Address Claim struct. Can be only formatted, only the rest, or both.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Address {
-    #[serde(default)] pub formatted: Option<String>,
-    #[serde(default)] pub street_address: Option<String>,
-    #[serde(default)] pub locality: Option<String>,
-    #[serde(default)] pub region: Option<String>,
+    #[serde(default)]
+    pub formatted: Option<String>,
+    #[serde(default)]
+    pub street_address: Option<String>,
+    #[serde(default)]
+    pub locality: Option<String>,
+    #[serde(default)]
+    pub region: Option<String>,
     // Countries like the UK use alphanumeric postal codes, so you can't just use a number here
-    #[serde(default)] pub postal_code: Option<String>,
-    #[serde(default)] pub country: Option<String>,
+    #[serde(default)]
+    pub postal_code: Option<String>,
+    #[serde(default)]
+    pub country: Option<String>,
 }
 
 #[cfg(test)]
 mod tests {
-    use reqwest::Url;
-    use crate::Client;
     use crate::issuer;
+    use crate::Client;
+    use reqwest::Url;
 
     macro_rules! test {
         ($issuer:ident) => {
@@ -518,7 +568,7 @@ mod tests {
                 let client = Client::discover(id, secret, redirect, issuer::$issuer()).unwrap();
                 client.auth_url(&Default::default());
             }
-        }
+        };
     }
 
     test!(google);

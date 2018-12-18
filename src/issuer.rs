@@ -26,8 +26,8 @@ pub fn yahoo() -> Url {
 
 #[cfg(test)]
 mod tests {
-    use reqwest::Client;
     use crate::discovery::discover;
+    use reqwest::Client;
 
     macro_rules! test {
         ($issuer:ident) => {
@@ -36,7 +36,7 @@ mod tests {
                 let client = Client::new();
                 discover(&client, super::$issuer()).unwrap();
             }
-        }
+        };
     }
 
     test!(google);

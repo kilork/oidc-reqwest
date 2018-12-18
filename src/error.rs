@@ -13,7 +13,7 @@ macro_rules! from {
                 $to::$from(e)
             }
         }
-    }
+    };
 }
 
 #[derive(Debug, Fail)]
@@ -71,11 +71,20 @@ pub enum Validation {
 
 #[derive(Debug, Fail)]
 pub enum Mismatch {
-    #[fail(display = "Client ID and Token authorized party mismatch: '{}', '{}'", expected, actual)]
+    #[fail(
+        display = "Client ID and Token authorized party mismatch: '{}', '{}'",
+        expected, actual
+    )]
     AuthorizedParty { expected: String, actual: String },
-    #[fail(display = "Configured issuer and token issuer mismatch: '{}' '{}'", expected, actual)]
+    #[fail(
+        display = "Configured issuer and token issuer mismatch: '{}' '{}'",
+        expected, actual
+    )]
     Issuer { expected: String, actual: String },
-    #[fail(display = "Given nonce does not match token nonce: '{}', '{}'", expected, actual)]
+    #[fail(
+        display = "Given nonce does not match token nonce: '{}', '{}'",
+        expected, actual
+    )]
     Nonce { expected: String, actual: String },
 }
 
@@ -96,13 +105,16 @@ pub enum Expiry {
     #[fail(display = "Token expired at: {}", _0)]
     Expires(::chrono::naive::NaiveDateTime),
     #[fail(display = "Token is too old: {}", _0)]
-    MaxAge(::chrono::Duration)
+    MaxAge(::chrono::Duration),
 }
 
 #[derive(Debug, Fail)]
 pub enum Userinfo {
     #[fail(display = "Config has no userinfo url")]
     NoUrl,
-    #[fail(display = "Token and Userinfo Subjects mismatch: '{}', '{}'", expected, actual)]
+    #[fail(
+        display = "Token and Userinfo Subjects mismatch: '{}', '{}'",
+        expected, actual
+    )]
     MismatchSubject { expected: String, actual: String },
 }
