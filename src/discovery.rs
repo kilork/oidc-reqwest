@@ -3,7 +3,7 @@ use biscuit::Empty;
 use inth_oauth2::provider::Provider;
 use inth_oauth2::token::Expiring;
 use reqwest::{Client, Url};
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use url_serde;
 
 use crate::error::Error;

@@ -75,7 +75,7 @@ use biscuit::{Empty, SingleOrMultiple};
 use chrono::{Duration, NaiveDate, Utc};
 use inth_oauth2::token::Token as _t;
 use reqwest::Url;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use validator::Validate;
 use validator_derive::Validate;
 

@@ -3,7 +3,7 @@ use biscuit::{CompactJson, Empty, SingleOrMultiple};
 use inth_oauth2::client::response::{FromResponse, ParseError};
 use inth_oauth2::token::{self, Bearer, Expiring};
 use reqwest::Url;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use url_serde;
 
