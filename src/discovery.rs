@@ -134,7 +134,6 @@ impl Provider for Discovered {
 pub fn discover(client: &Client, issuer: Url) -> Result<Config, Error> {
     secure(&issuer)?;
     let url = issuer.join(".well-known/openid-configuration")?;
-    println!("Urls: {} {}", issuer, url);
     let mut resp = client.get(url).send()?;
     resp.json().map_err(Error::from)
 }
