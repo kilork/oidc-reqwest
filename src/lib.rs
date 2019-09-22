@@ -12,8 +12,8 @@
 //! let secret = "a secret to everybody".to_string();
 //! let redirect = reqwest::Url::parse("https://my-redirect.foo/dest")?;
 //! let issuer = oidc::issuer::google();
-//! let client = oidc::discover(id, secret, redirect, issuer)?;
-//! let auth_url = client.auth_url(Default::default());
+//! let client = oidc::Client::discover(id, secret, redirect, issuer)?;
+//! let auth_url = client.auth_url(&Default::default());
 //!
 //! // ... send your user to auth_url, get an auth_code back at your redirect url handler
 //!
