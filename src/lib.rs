@@ -558,6 +558,11 @@ mod tests {
     use crate::Client;
     use reqwest::Url;
 
+    #[test]
+    fn default_options() {
+        let _: super::Options = Default::default();
+    }
+
     macro_rules! test {
         ($issuer:ident) => {
             #[test]
