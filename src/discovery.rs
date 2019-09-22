@@ -129,12 +129,13 @@ impl Provider for Discovered {
     }
 }
 
-/// Get the discovery config document from the given issuer url. Errors are either a reqwest error
-/// or an Insecure if the Url isn't https.
-pub fn discover(client: &Client, issuer: Url) -> Result<Config, Error> {
+/// Get the discovery config document from the given issuer url. Errors are either a Reqwest error,
+/// Insecure if the Url isn't https, or CannotBeABase if the URL isn't an origin.
+pub fn discover(client: &Client, mut issuer: Url) -> Result<Config, Error> {
     secure(&issuer)?;
-    let url = issuer.join(".well-known/openid-configuration")?;
-    let mut resp = client.get(url).send()?;
+    issuer.path_segments_mut().map_err(|_| Error::CannotBeABase)?
+       .extend(&[".well-known", "openid-configuration"]);
+    let mut resp = client.get(issuer).send()?;
     resp.json().map_err(Error::from)
 }
 

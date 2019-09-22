@@ -6,16 +6,6 @@ pub use serde_json::Error as Json;
 
 use failure::Fail;
 
-macro_rules! from {
-    ($to:ident, $from:ident) => {
-        impl From<$from> for $to {
-            fn from(e: $from) -> Self {
-                $to::$from(e)
-            }
-        }
-    };
-}
-
 #[derive(Debug, Fail)]
 pub enum Error {
     #[fail(display = "{}", _0)]
@@ -38,16 +28,28 @@ pub enum Error {
     Insecure(::reqwest::Url),
     #[fail(display = "Scope must contain Openid")]
     MissingOpenidScope,
+    #[fail(display = "Url: Path segments is cannot-be-a-base")]
+    CannotBeABase,
 }
 
-from!(Error, Jose);
-from!(Error, Json);
-from!(Error, Oauth);
-from!(Error, Http);
-from!(Error, Url);
-from!(Error, Decode);
-from!(Error, Validation);
-from!(Error, Userinfo);
+macro_rules! from {
+    ($from:ident) => {
+        impl From<$from> for Error {
+            fn from(e: $from) -> Self {
+                Error::$from(e)
+            }
+        }
+    };
+}
+
+from!(Jose);
+from!(Json);
+from!(Oauth);
+from!(Http);
+from!(Url);
+from!(Decode);
+from!(Validation);
+from!(Userinfo);
 
 #[derive(Debug, Fail)]
 pub enum Decode {

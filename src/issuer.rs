@@ -12,6 +12,15 @@ pub fn microsoft() -> Url {
     Url::parse("https://login.microsoftonline.com/common/v2.0/").expect(STATIC_URL_ERR)
 }
 
+/// Microsoft online tentant-dependent tokens
+///  * `tenant` - Value that can be used to control who can sign into the application.
+pub fn microsoft_tenant(tenant: &str) -> Url {
+    Url::parse("https://login.microsoftonline.com/")
+        .expect(STATIC_URL_ERR)
+        .join(tenant)
+        .expect("Failed to append tenant")
+}
+
 pub fn paypal() -> Url {
     Url::parse("https://www.paypalobjects.com").expect(STATIC_URL_ERR)
 }
@@ -23,6 +32,7 @@ pub fn salesforce() -> Url {
 pub fn yahoo() -> Url {
     Url::parse("https://login.yahoo.com").expect(STATIC_URL_ERR)
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -44,4 +54,10 @@ mod tests {
     test!(paypal);
     test!(salesforce);
     test!(yahoo);
+
+    #[test]
+    fn microsoft_tenant() {
+        let client = ::reqwest::Client::new();
+        crate::discovery::discover(&client, super::microsoft_tenant("common")).unwrap();
+    }
 }
