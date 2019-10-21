@@ -10,10 +10,12 @@ use crate::error::Error;
 use crate::token::Token;
 
 pub(crate) fn secure(url: &Url) -> Result<(), Error> {
-    if url.scheme() != "https" {
-        Err(Error::Insecure(url.clone()))
-    } else {
+    if url.scheme() == "https" {
         Ok(())
+    } else if url.host_str() == Some("localhost") {
+        Ok(())
+    } else {
+        Err(Error::Insecure(url.clone()))
     }
 }
 
@@ -133,8 +135,10 @@ impl Provider for Discovered {
 /// Insecure if the Url isn't https, or CannotBeABase if the URL isn't an origin.
 pub fn discover(client: &Client, mut issuer: Url) -> Result<Config, Error> {
     secure(&issuer)?;
-    issuer.path_segments_mut().map_err(|_| Error::CannotBeABase)?
-       .extend(&[".well-known", "openid-configuration"]);
+    issuer
+        .path_segments_mut()
+        .map_err(|_| Error::CannotBeABase)?
+        .extend(&[".well-known", "openid-configuration"]);
     let mut resp = client.get(issuer).send()?;
     resp.json().map_err(Error::from)
 }
