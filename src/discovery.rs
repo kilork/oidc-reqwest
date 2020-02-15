@@ -2,9 +2,8 @@ use biscuit::jwk::JWKSet;
 use biscuit::Empty;
 use inth_oauth2::provider::Provider;
 use inth_oauth2::token::Expiring;
-use reqwest::{Client, Url};
+use reqwest::{blocking::Client, Url};
 use serde::{Deserialize, Serialize};
-use url_serde;
 
 use crate::error::Error;
 use crate::token::Token;
@@ -22,21 +21,15 @@ pub(crate) fn secure(url: &Url) -> Result<(), Error> {
 // TODO I wish we could impl default for this, but you cannot have a config without issuer etc
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
-    #[serde(with = "url_serde")]
     pub issuer: Url,
-    #[serde(with = "url_serde")]
     pub authorization_endpoint: Url,
     // Only optional in the implicit flow
     // TODO For now, we only support code flows.
-    #[serde(with = "url_serde")]
     pub token_endpoint: Url,
     #[serde(default)]
-    #[serde(with = "url_serde")]
     pub userinfo_endpoint: Option<Url>,
-    #[serde(with = "url_serde")]
     pub jwks_uri: Url,
     #[serde(default)]
-    #[serde(with = "url_serde")]
     pub registration_endpoint: Option<Url>,
     #[serde(default)]
     pub scopes_supported: Option<Vec<String>>,
@@ -86,7 +79,6 @@ pub struct Config {
     #[serde(default)]
     pub claims_supported: Option<Vec<String>>,
     #[serde(default)]
-    #[serde(with = "url_serde")]
     pub service_documentation: Option<Url>,
     #[serde(default)]
     pub claims_locales_supported: Option<Vec<String>>,
@@ -102,10 +94,8 @@ pub struct Config {
     pub require_request_uri_registration: bool,
 
     #[serde(default)]
-    #[serde(with = "url_serde")]
     pub op_policy_uri: Option<Url>,
     #[serde(default)]
-    #[serde(with = "url_serde")]
     pub op_tos_uri: Option<Url>,
     // This is a NONSTANDARD extension Google uses that is a part of the Oauth discovery draft
     #[serde(default)]
@@ -139,7 +129,7 @@ pub fn discover(client: &Client, mut issuer: Url) -> Result<Config, Error> {
         .path_segments_mut()
         .map_err(|_| Error::CannotBeABase)?
         .extend(&[".well-known", "openid-configuration"]);
-    let mut resp = client.get(issuer).send()?;
+    let resp = client.get(issuer).send()?;
     resp.json().map_err(Error::from)
 }
 
@@ -147,7 +137,7 @@ pub fn discover(client: &Client, mut issuer: Url) -> Result<Config, Error> {
 /// the url isn't https.
 pub fn jwks(client: &Client, url: Url) -> Result<JWKSet<Empty>, Error> {
     secure(&url)?;
-    let mut resp = client.get(url).send()?;
+    let resp = client.get(url).send()?;
     resp.json().map_err(Error::from)
 }
 

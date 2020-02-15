@@ -1,7 +1,7 @@
 pub use biscuit::errors::Error as Jose;
 pub use inth_oauth2::ClientError as Oauth;
 pub use reqwest::Error as Http;
-pub use reqwest::UrlError as Url;
+// pub use reqwest::UrlError as Url;
 pub use serde_json::Error as Json;
 
 use failure::Fail;
@@ -14,8 +14,8 @@ pub enum Error {
     Oauth(#[fail(cause)] Oauth),
     #[fail(display = "{}", _0)]
     Http(#[fail(cause)] Http),
-    #[fail(display = "{}", _0)]
-    Url(#[fail(cause)] Url),
+    // #[fail(display = "{}", _0)]
+    // Url(#[fail(cause)] Url),
     #[fail(display = "{}", _0)]
     Json(#[fail(cause)] Json),
     #[fail(display = "{}", _0)]
@@ -46,7 +46,7 @@ from!(Jose);
 from!(Json);
 from!(Oauth);
 from!(Http);
-from!(Url);
+// from!(Url);
 from!(Decode);
 from!(Validation);
 from!(Userinfo);

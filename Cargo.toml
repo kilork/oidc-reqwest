@@ -9,17 +9,17 @@ edition = "2018"
 keywords = ["authentication", "client", "openid", "openid_connect", "web"]
 license = "Apache-2.0"
 readme = "README.md"
-repository = "https://gitlab.com/zanny/oidc-reqwest"
+repository = "https://github.com/kilork/oidc-reqwest"
 
 [dependencies]
-base64              = "0.10"
-biscuit             = "0.3"
+base64              = "0.11"
+biscuit             = "0.4"
 chrono              = "0.4"
 failure             = "0.1"
-inth-oauth2         = "0.16"
-reqwest             = { version = "0.9", features = ["hyper-011"] }
+inth-oauth2         = { git = "https://github.com/kilork/inth-oauth2" }
+reqwest             = { version = "0.10", features = ["json", "blocking"] }
 serde               = { version = "1", features = ["derive"] }
 serde_json          = "1"
-url_serde           = "0.2"
-validator           = "0.9"
-validator_derive    = "0.9"
+url                 = { version = "2", features = ["serde"] }
+validator           = "0.10"
+validator_derive    = "0.10"

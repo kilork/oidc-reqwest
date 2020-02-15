@@ -33,11 +33,10 @@ pub fn yahoo() -> Url {
     Url::parse("https://login.yahoo.com").expect(STATIC_URL_ERR)
 }
 
-
 #[cfg(test)]
 mod tests {
     use crate::discovery::discover;
-    use reqwest::Client;
+    use reqwest::blocking::Client;
 
     macro_rules! test {
         ($issuer:ident) => {
@@ -57,7 +56,7 @@ mod tests {
 
     #[test]
     fn microsoft_tenant() {
-        let client = ::reqwest::Client::new();
+        let client = ::reqwest::blocking::Client::new();
         crate::discovery::discover(&client, super::microsoft_tenant("common")).unwrap();
     }
 }

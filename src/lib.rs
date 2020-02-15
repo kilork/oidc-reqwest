@@ -34,7 +34,7 @@
 //! let secret = "a secret to everybody".to_string();
 //! let redirect = reqwest::Url::parse("https://my-redirect.foo/dest")?;
 //! let issuer = oidc::issuer::google();
-//! let http = reqwest::Client::new();
+//! let http = reqwest::blocking::Client::new();
 //!
 //! let config = oidc::discovery::discover(&http, issuer)?;
 //! let jwks = oidc::discovery::jwks(&http, config.jwks_uri.clone())?;
@@ -106,7 +106,7 @@ impl Client {
     /// Constructs a client from an issuer url and client parameters via discovery
     pub fn discover(id: String, secret: String, redirect: Url, issuer: Url) -> Result<Self, Error> {
         discovery::secure(&redirect)?;
-        let client = reqwest::Client::new();
+        let client = reqwest::blocking::Client::new();
         let config = discovery::discover(&client, issuer)?;
         let jwks = discovery::jwks(&client, config.jwks_uri.clone())?;
         let provider = Discovered(config);
@@ -137,7 +137,11 @@ impl Client {
     }
 
     /// Passthrough to the inth_oauth2::client's request token.
-    pub fn request_token(&self, client: &reqwest::Client, auth_code: &str) -> Result<Token, Error> {
+    pub fn request_token(
+        &self,
+        client: &reqwest::blocking::Client,
+        auth_code: &str,
+    ) -> Result<Token, Error> {
         self.oauth
             .request_token(client, auth_code)
             .map_err(Error::from)
@@ -212,7 +216,7 @@ impl Client {
         nonce: Option<&str>,
         max_age: Option<&Duration>,
     ) -> Result<Token, Error> {
-        let client = reqwest::Client::new();
+        let client = reqwest::blocking::Client::new();
         let mut token = self.request_token(&client, auth_code)?;
         self.decode_token(&mut token.id_token)?;
         self.validate_token(&token.id_token, nonce, max_age)?;
@@ -259,7 +263,7 @@ impl Client {
         let alg = header.registered.algorithm;
         match key.algorithm {
             // HMAC
-            AlgorithmParameters::OctectKey { ref value, .. } => match alg {
+            AlgorithmParameters::OctetKey { ref value, .. } => match alg {
                 SignatureAlgorithm::HS256
                 | SignatureAlgorithm::HS384
                 | SignatureAlgorithm::HS512 => {
@@ -390,7 +394,7 @@ impl Client {
     /// - Userinfo::MismatchSubject if the returned userinfo document and tokens subject mismatch
     pub fn request_userinfo(
         &self,
-        client: &reqwest::Client,
+        client: &reqwest::blocking::Client,
         token: &Token,
     ) -> Result<Userinfo, Error> {
         match self.config().userinfo_endpoint {
@@ -398,14 +402,7 @@ impl Client {
                 discovery::secure(&url)?;
                 let claims = token.id_token.payload()?;
                 let auth_code = token.access_token().to_string();
-                let mut resp = client
-                    .get(url.clone())
-                    // FIXME This is a transitional hack for Reqwest 0.9 that should be refactored
-                    // when upstream restores typed header support.
-                    .header_011(reqwest::hyper_011::header::Authorization(
-                        reqwest::hyper_011::header::Bearer { token: auth_code },
-                    ))
-                    .send()?;
+                let resp = client.get(url.clone()).bearer_auth(auth_code).send()?;
                 let info: Userinfo = resp.json()?;
                 if claims.sub != info.sub {
                     let expected = info.sub.clone();
@@ -457,13 +454,10 @@ pub struct Userinfo {
     #[serde(default)]
     pub preferred_username: Option<String>,
     #[serde(default)]
-    #[serde(with = "url_serde")]
     pub profile: Option<Url>,
     #[serde(default)]
-    #[serde(with = "url_serde")]
     pub picture: Option<Url>,
     #[serde(default)]
-    #[serde(with = "url_serde")]
     pub website: Option<Url>,
     #[serde(default)]
     #[validate(email)]

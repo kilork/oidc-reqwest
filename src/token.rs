@@ -5,7 +5,6 @@ use inth_oauth2::token::{self, Bearer, Expiring};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use url_serde;
 
 pub use biscuit::jws::Compact as Jws;
 
@@ -14,7 +13,6 @@ type IdToken = Jws<Claims, Empty>;
 /// ID Token contents. [See spec.](https://openid.net/specs/openid-connect-basic-1_0.html#IDToken)
 #[derive(Deserialize, Serialize)]
 pub struct Claims {
-    #[serde(with = "url_serde")]
     pub iss: Url,
     // Max 255 ASCII chars
     // Can't deserialize a [u8; 255]
