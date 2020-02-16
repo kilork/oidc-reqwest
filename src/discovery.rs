@@ -9,6 +9,12 @@ use crate::error::Error;
 use crate::token::Token;
 
 pub(crate) fn secure(url: &Url) -> Result<(), Error> {
+    Ok(())
+}
+
+/*
+FIXME: need to use it in PROD setup
+pub(crate) fn secure(url: &Url) -> Result<(), Error> {
     if url.scheme() == "https" {
         Ok(())
     } else if url.host_str() == Some("localhost") {
@@ -17,6 +23,7 @@ pub(crate) fn secure(url: &Url) -> Result<(), Error> {
         Err(Error::Insecure(url.clone()))
     }
 }
+*/
 
 // TODO I wish we could impl default for this, but you cannot have a config without issuer etc
 #[derive(Debug, Deserialize, Serialize)]
