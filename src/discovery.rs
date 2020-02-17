@@ -34,7 +34,11 @@ pub struct Config {
     // TODO For now, we only support code flows.
     pub token_endpoint: Url,
     #[serde(default)]
+    pub token_introspection_endpoint: Option<Url>,
+    #[serde(default)]
     pub userinfo_endpoint: Option<Url>,
+    #[serde(default)]
+    pub end_session_endpoint: Option<Url>,
     pub jwks_uri: Url,
     #[serde(default)]
     pub registration_endpoint: Option<Url>,
