@@ -1,7 +1,7 @@
 use base64;
 use biscuit::{CompactJson, Empty, SingleOrMultiple};
 use inth_oauth2::client::response::{FromResponse, ParseError};
-use inth_oauth2::token::{self, Bearer, Expiring};
+use inth_oauth2::token::{self, Bearer, Refresh};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -11,7 +11,7 @@ pub use biscuit::jws::Compact as Jws;
 type IdToken = Jws<Claims, Empty>;
 
 /// ID Token contents. [See spec.](https://openid.net/specs/openid-connect-basic-1_0.html#IDToken)
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Claims {
     pub iss: Url,
     // Max 255 ASCII chars
@@ -66,7 +66,7 @@ impl CompactJson for Claims {}
 /// Wraps an oauth bearer token.
 #[derive(Serialize, Deserialize)]
 pub struct Token {
-    bearer: Bearer<Expiring>,
+    bearer: Bearer<Refresh>,
     pub id_token: IdToken,
 }
 
@@ -83,14 +83,14 @@ impl Token {
     }
 }
 
-impl token::Token<Expiring> for Token {
+impl token::Token<Refresh> for Token {
     fn access_token(&self) -> &str {
         self.bearer.access_token()
     }
     fn scope(&self) -> Option<&str> {
         self.bearer.scope()
     }
-    fn lifetime(&self) -> &Expiring {
+    fn lifetime(&self) -> &Refresh {
         self.bearer.lifetime()
     }
 }

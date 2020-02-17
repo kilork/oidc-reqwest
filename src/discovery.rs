@@ -1,7 +1,7 @@
 use biscuit::jwk::JWKSet;
 use biscuit::Empty;
 use inth_oauth2::provider::Provider;
-use inth_oauth2::token::Expiring;
+use inth_oauth2::token::Refresh;
 use reqwest::{blocking::Client, Url};
 use serde::{Deserialize, Serialize};
 
@@ -117,7 +117,7 @@ fn tru() -> bool {
 pub struct Discovered(pub Config);
 
 impl Provider for Discovered {
-    type Lifetime = Expiring;
+    type Lifetime = Refresh;
     type Token = Token;
     fn auth_uri(&self) -> &Url {
         &self.0.authorization_endpoint
